@@ -12,5 +12,7 @@ public sealed class TransportRequest
 
     public string? ContentType { get; init; }
 
+    public string? Accept { get; init; }
+
     public IDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
 }

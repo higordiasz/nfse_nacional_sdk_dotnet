@@ -17,7 +17,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\NFSeNacionalSdk.Contracts\NFSeNacionalSdk.Contracts.csproj" />
     <ProjectReference Include="..\..\src\NFSeNacionalSdk\NFSeNacionalSdk.csproj" />
+    <ProjectReference
+      Include="..\..\src\NFSeNacionalSdk.Serialization.Xml\NFSeNacionalSdk.Serialization.Xml.csproj" />
+    <ProjectReference
+      Include="..\..\src\NFSeNacionalSdk.Transport.Http\NFSeNacionalSdk.Transport.Http.csproj" />
   </ItemGroup>
 
 </Project>

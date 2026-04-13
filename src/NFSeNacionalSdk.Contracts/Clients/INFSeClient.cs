@@ -5,7 +5,7 @@ namespace NFSeNacionalSdk.Contracts.Clients;
 
 public interface INFSeClient
 {
-    Task<EmitDpsResponse> EmitAsync(
-        EmitDpsRequest request,
+    Task<GetNfseByAccessKeyResult> GetNfseByAccessKeyAsync(
+        GetNfseByAccessKeyRequest request,
         CancellationToken cancellationToken = default);
 }

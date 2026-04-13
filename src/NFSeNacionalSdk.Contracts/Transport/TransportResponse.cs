@@ -1,13 +1,17 @@
+using System.Net;
+
 namespace NFSeNacionalSdk.Contracts.Transport;
 
 public sealed class TransportResponse
 {
-    public int StatusCode { get; init; }
+    public HttpStatusCode StatusCode { get; init; }
 
     public string? Content { get; init; }
 
-    public IDictionary<string, IEnumerable<string>> Headers { get; init; } =
-        new Dictionary<string, IEnumerable<string>>();
+    public string? ContentType { get; init; }
 
-    public bool IsSuccessStatusCode => StatusCode >= 200 && StatusCode <= 299;
+    public IDictionary<string, IEnumerable<string>> Headers { get; init; } =
+        new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase);
+
+    public bool IsSuccessStatusCode => (int)StatusCode >= 200 && (int)StatusCode <= 299;
 }
