@@ -4,6 +4,8 @@ namespace NFSeNacionalSdk.Core.Options;
 
 public sealed class NFSeEndpointsOptions
 {
+    public NFSeEnvironment Environment { get; init; }
+
     public string BaseUrl { get; init; } = string.Empty;
 
     public string MunicipalParametersByConventionPath => "/parametros_municipais/{codigoMunicipio}/convenio";
@@ -21,10 +23,12 @@ public sealed class NFSeEndpointsOptions
         {
             NFSeEnvironment.Production => new NFSeEndpointsOptions
             {
+                Environment = environment,
                 BaseUrl = "https://sefin.nfse.gov.br/SefinNacional/"
             },
             NFSeEnvironment.ProductionRestricted => new NFSeEndpointsOptions
             {
+                Environment = environment,
                 BaseUrl = "https://sefin.producaorestrita.nfse.gov.br/SefinNacional/"
             },
             _ => throw new ArgumentOutOfRangeException(nameof(environment), environment, null)

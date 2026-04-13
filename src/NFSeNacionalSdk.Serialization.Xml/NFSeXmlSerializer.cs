@@ -1,15 +1,18 @@
 using System.Xml;
 using System.Xml.Serialization;
 using NFSeNacionalSdk.Contracts.Documents;
+using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Contracts.Serialization;
 using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Serialization.Xml.Lookup;
+using NFSeNacionalSdk.Serialization.Xml.Transmission;
 
 namespace NFSeNacionalSdk.Serialization.Xml;
 
 public sealed class NFSeXmlSerializer : INFSeSerializer
 {
     private readonly NFSeLookupXmlResponseParser _lookupParser = new();
+    private readonly EmitDpsXmlBuilder _emitDpsBuilder = new();
 
     public string Serialize<T>(T value)
     {
@@ -81,5 +84,12 @@ public sealed class NFSeXmlSerializer : INFSeSerializer
     public NFSeLookupDeserializationResult DeserializeLookupResponse(string content)
     {
         return _lookupParser.Deserialize(content);
+    }
+
+    public EmitDpsSerializationResult SerializeSignedDps(
+        EmitDpsRequest request,
+        EmitDpsSerializationContext context)
+    {
+        return _emitDpsBuilder.Build(request, context);
     }
 }

@@ -1,3 +1,5 @@
+using NFSeNacionalSdk.Contracts.Requests;
+
 namespace NFSeNacionalSdk.Contracts.Serialization;
 
 public interface INFSeSerializer
@@ -7,4 +9,8 @@ public interface INFSeSerializer
     T Deserialize<T>(string content);
 
     NFSeLookupDeserializationResult DeserializeLookupResponse(string content);
+
+    EmitDpsSerializationResult SerializeSignedDps(
+        EmitDpsRequest request,
+        EmitDpsSerializationContext context);
 }
