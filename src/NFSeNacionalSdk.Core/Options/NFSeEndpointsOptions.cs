@@ -21,11 +21,11 @@ public sealed class NFSeEndpointsOptions
         {
             NFSeEnvironment.Production => new NFSeEndpointsOptions
             {
-                BaseUrl = "https://sefin.nfse.gov.br"
+                BaseUrl = "https://sefin.nfse.gov.br/SefinNacional/"
             },
             NFSeEnvironment.ProductionRestricted => new NFSeEndpointsOptions
             {
-                BaseUrl = "https://sefin.producaorestrita.nfse.gov.br"
+                BaseUrl = "https://sefin.producaorestrita.nfse.gov.br/SefinNacional/"
             },
             _ => throw new ArgumentOutOfRangeException(nameof(environment), environment, null)
         };

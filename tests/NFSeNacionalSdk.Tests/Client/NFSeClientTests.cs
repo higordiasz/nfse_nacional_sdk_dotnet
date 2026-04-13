@@ -15,7 +15,7 @@ public sealed class NFSeClientTests
     public async Task GetNfseByAccessKeyAsync_ShouldReturnNormalizedSuccessResult()
     {
         using var client = new NFSeClient(
-            new FakeTransport(HttpStatusCode.OK, NFSeLookupXmlFixtures.Success),
+            new FakeTransport(HttpStatusCode.OK, NFSeLookupXmlFixtures.SuccessApiResponseJson),
             CreateSerializer(),
             NFSeEndpointsOptions.For(Core.Enums.NFSeEnvironment.ProductionRestricted));
 
@@ -41,7 +41,7 @@ public sealed class NFSeClientTests
     public async Task GetNfseByAccessKeyAsync_ShouldReturnNormalizedBusinessErrorResult()
     {
         using var client = new NFSeClient(
-            new FakeTransport(HttpStatusCode.BadRequest, NFSeLookupXmlFixtures.BusinessError),
+            new FakeTransport(HttpStatusCode.NotFound, NFSeLookupXmlFixtures.NotFoundApiResponseJson),
             CreateSerializer(),
             NFSeEndpointsOptions.For(Core.Enums.NFSeEnvironment.ProductionRestricted));
 
@@ -52,27 +52,20 @@ public sealed class NFSeClientTests
 
         Assert.False(result.Success);
         Assert.Equal(NFSeLookupXmlFixtures.AccessKey, result.AccessKey);
-        Assert.Equal(NFSeLookupXmlFixtures.BusinessError, result.RawXml);
-        Assert.Equal(HttpStatusCode.BadRequest, result.StatusCode);
+        Assert.Null(result.RawXml);
+        Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
         Assert.Null(result.Document);
         Assert.Null(result.JsonContent);
-        Assert.Collection(
-            result.Messages,
-            message =>
-            {
-                Assert.Equal("E160", message.Code);
-                Assert.Equal("NFS-e nao encontrada para a chave de acesso informada.", message.Description);
-            },
-            message =>
-            {
-                Assert.Equal("E161", message.Code);
-                Assert.Equal("Verifique se a chave pertence ao ambiente consultado.", message.Description);
-            });
+        Assert.Collection(result.Messages, message =>
+        {
+            Assert.Equal("E2401", message.Code);
+            Assert.Equal("Chave de acesso não encontrada.", message.Description);
+        });
     }
 
     private static INFSeSerializer CreateSerializer() => new NFSeXmlSerializer();
 
-    private sealed class FakeTransport(HttpStatusCode statusCode, string xmlContent) : INFSeTransport
+    private sealed class FakeTransport(HttpStatusCode statusCode, string content) : INFSeTransport
     {
         public Task<TransportResponse> SendAsync(
             TransportRequest request,
@@ -81,8 +74,8 @@ public sealed class NFSeClientTests
             var response = new TransportResponse
             {
                 StatusCode = statusCode,
-                Content = xmlContent,
-                ContentType = "application/xml"
+                Content = content,
+                ContentType = "application/json"
             };
 
             return Task.FromResult(response);

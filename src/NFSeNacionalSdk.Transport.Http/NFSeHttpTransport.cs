@@ -51,7 +51,11 @@ public sealed class NFSeHttpTransport : INFSeTransport, IDisposable
             throw new ArgumentException("Transport request path must be provided.", nameof(request));
         }
 
-        using var message = new HttpRequestMessage(request.Method, request.Path);
+        var requestUri = Uri.IsWellFormedUriString(request.Path, UriKind.Absolute)
+            ? request.Path
+            : request.Path.TrimStart('/');
+
+        using var message = new HttpRequestMessage(request.Method, requestUri);
 
         if (!string.IsNullOrWhiteSpace(request.Accept))
         {

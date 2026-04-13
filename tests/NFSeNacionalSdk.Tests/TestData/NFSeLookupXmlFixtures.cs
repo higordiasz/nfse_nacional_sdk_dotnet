@@ -1,3 +1,6 @@
+using System.IO.Compression;
+using System.Text;
+
 namespace NFSeNacionalSdk.Tests.TestData;
 
 internal static class NFSeLookupXmlFixtures
@@ -66,4 +69,39 @@ internal static class NFSeLookupXmlFixtures
           </MensagemRetorno>
         </ListaMensagemRetorno>
         """;
+
+    public static string SuccessApiResponseJson => $$"""
+        {
+          "tipoAmbiente": 2,
+          "versaoAplicativo": "SefinNacional_1.6.0",
+          "dataHoraProcessamento": "2026-04-13T16:56:04.1505667-03:00",
+          "chaveAcesso": "{{AccessKey}}",
+          "nfseXmlGZipB64": "{{ToGZipBase64(Success)}}"
+        }
+        """;
+
+    public static string NotFoundApiResponseJson => """
+        {
+          "tipoAmbiente": 2,
+          "versaoAplicativo": "SefinNacional_1.6.0",
+          "dataHoraProcessamento": "2026-04-13T16:56:04.1505667-03:00",
+          "erro": {
+            "codigo": "E2401",
+            "descricao": "Chave de acesso não encontrada."
+          }
+        }
+        """;
+
+    private static string ToGZipBase64(string content)
+    {
+        var contentBytes = Encoding.UTF8.GetBytes(content);
+        using var output = new MemoryStream();
+
+        using (var gzip = new GZipStream(output, CompressionMode.Compress, leaveOpen: true))
+        {
+            gzip.Write(contentBytes, 0, contentBytes.Length);
+        }
+
+        return Convert.ToBase64String(output.ToArray());
+    }
 }

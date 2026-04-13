@@ -1,8 +1,8 @@
+using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NFSeNacionalSdk.Contracts.Clients;
-using NFSeNacionalSdk.Contracts.Documents;
 using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Contracts.Responses;
 using NFSeNacionalSdk.Contracts.Serialization;
@@ -11,6 +11,7 @@ using NFSeNacionalSdk.Core.Constants;
 using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Core.Options;
 using NFSeNacionalSdk.Serialization.Xml;
+using NFSeNacionalSdk.SefinNational;
 using NFSeNacionalSdk.Transport.Http;
 
 namespace NFSeNacionalSdk;
@@ -57,37 +58,30 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             {
                 Method = HttpMethod.Get,
                 Path = path,
-                Accept = MediaTypes.ApplicationXml
+                Accept = MediaTypes.ApplicationJson
             },
             cancellationToken).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(response.Content))
         {
             throw new NFSeTransportException(
-                $"NFSe consultation returned an empty XML payload with status code {(int)response.StatusCode}.");
+                $"NFSe consultation returned an empty payload with status code {(int)response.StatusCode}.");
         }
 
-        Contracts.Serialization.NFSeLookupDeserializationResult lookupResult;
-
-        try
-        {
-            lookupResult = _serializer.DeserializeLookupResponse(response.Content);
-        }
-        catch (NFSeSerializationException exception) when (!response.IsSuccessStatusCode)
-        {
-            throw new NFSeTransportException(
-                $"NFSe consultation failed with status code {(int)response.StatusCode} and an unsupported error payload.",
-                exception);
-        }
+        var apiEnvelope = DeserializeApiEnvelope(response.Content);
+        var rawXml = TryDecodeXml(apiEnvelope);
+        var lookupResult = rawXml is null
+            ? CreateBusinessErrorResult(apiEnvelope, response.StatusCode)
+            : DeserializeLookupXml(rawXml, response.StatusCode);
 
         var document = lookupResult.Document;
-        document?.AccessKey ??= request.AccessKey;
+        document?.AccessKey ??= apiEnvelope.AccessKey ?? request.AccessKey;
 
         return new GetNfseByAccessKeyResult
         {
-            AccessKey = document?.AccessKey ?? request.AccessKey,
+            AccessKey = document?.AccessKey ?? apiEnvelope.AccessKey ?? request.AccessKey,
             Success = lookupResult.Success,
-            RawXml = response.Content,
+            RawXml = rawXml,
             Document = document,
             JsonContent = document is null
                 ? null
@@ -168,6 +162,69 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         _endpoints = endpoints;
         _jsonSerializerOptions = CreateDefaultJsonSerializerOptions(jsonSerializerOptions);
         _disposeTransport = disposeTransport;
+    }
+
+    private Contracts.Serialization.NFSeLookupDeserializationResult DeserializeLookupXml(
+        string rawXml,
+        HttpStatusCode statusCode)
+    {
+        try
+        {
+            return _serializer.DeserializeLookupResponse(rawXml);
+        }
+        catch (NFSeSerializationException exception) when ((int)statusCode >= 400)
+        {
+            throw new NFSeTransportException(
+                $"NFSe consultation failed with status code {(int)statusCode} and returned an unsupported XML payload.",
+                exception);
+        }
+    }
+
+    private static string? TryDecodeXml(SefinNationalApiEnvelope envelope)
+    {
+        return string.IsNullOrWhiteSpace(envelope.NfseXmlGZipBase64)
+            ? null
+            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(envelope.NfseXmlGZipBase64);
+    }
+
+    private static Contracts.Serialization.NFSeLookupDeserializationResult CreateBusinessErrorResult(
+        SefinNationalApiEnvelope envelope,
+        HttpStatusCode statusCode)
+    {
+        if (envelope.Error is null)
+        {
+            throw new NFSeTransportException(
+                $"NFSe consultation failed with status code {(int)statusCode} and returned an unsupported JSON payload.");
+        }
+
+        return new Contracts.Serialization.NFSeLookupDeserializationResult
+        {
+            Success = false,
+            Messages =
+            [
+                new NFSeMessage
+                {
+                    Code = envelope.Error.Code,
+                    Description = envelope.Error.GetResolvedDescription()
+                        ?? "The SEFIN API returned an error without description."
+                }
+            ]
+        };
+    }
+
+    private SefinNationalApiEnvelope DeserializeApiEnvelope(string content)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<SefinNationalApiEnvelope>(content, _jsonSerializerOptions)
+                ?? throw new NFSeSerializationException("The SEFIN API returned an empty JSON object.");
+        }
+        catch (JsonException exception)
+        {
+            throw new NFSeSerializationException(
+                "Failed to deserialize the JSON payload returned by the SEFIN API.",
+                exception);
+        }
     }
 
     private sealed record DefaultClientDependencies(

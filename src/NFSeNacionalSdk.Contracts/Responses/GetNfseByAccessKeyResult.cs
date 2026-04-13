@@ -9,7 +9,7 @@ public sealed class GetNfseByAccessKeyResult
 
     public bool Success { get; init; }
 
-    public required string RawXml { get; init; }
+    public string? RawXml { get; init; }
 
     public NFSeDocument? Document { get; init; }
 
