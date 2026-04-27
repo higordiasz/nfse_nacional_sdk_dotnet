@@ -267,6 +267,8 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
             .InformationalVersion;
 
+        version = version?.Split('+', 2)[0];
+
         if (string.IsNullOrWhiteSpace(version))
         {
             version = typeof(NFSeClient).Assembly.GetName().Version?.ToString(3);
@@ -274,7 +276,16 @@ public sealed class NFSeClient : INFSeClient, IDisposable
 
         return string.IsNullOrWhiteSpace(version)
             ? "NFSeNacionalSdk"
-            : $"NFSeNacionalSdk_{version}";
+            : LimitApplicationVersion($"NFSeSdk_{version}");
+    }
+
+    private static string LimitApplicationVersion(string value)
+    {
+        const int maxLength = 20;
+
+        return value.Length <= maxLength
+            ? value
+            : value[..maxLength];
     }
 
     private NFSeClient(

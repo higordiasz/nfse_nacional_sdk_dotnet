@@ -1,5 +1,7 @@
 using System.Security.Cryptography.Xml;
 using System.Xml;
+using System.Xml.Linq;
+using System.Xml.Schema;
 using NFSeNacionalSdk.Contracts.Serialization;
 using NFSeNacionalSdk.Core.Enums;
 using NFSeNacionalSdk.Serialization.Xml;
@@ -54,5 +56,56 @@ public sealed class NFSeXmlSerializerEmitDpsTests
         signedXml.LoadXml(signatureElement);
 
         Assert.True(signedXml.CheckSignature(certificate, verifySignatureOnly: true));
+    }
+
+    [Fact]
+    public void SerializeSignedDps_ShouldGenerateXmlValidAgainstOfficialDpsSchema()
+    {
+        var serializer = new NFSeXmlSerializer();
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+
+        var result = serializer.SerializeSignedDps(
+            NFSeTransmissionFixtures.CreateRequest(),
+            new EmitDpsSerializationContext
+            {
+                Environment = NFSeEnvironment.ProductionRestricted,
+                SigningCertificate = certificate,
+                ApplicationVersion = "NFSeNacionalSdk_Tests"
+            });
+
+        var schemaSet = new XmlSchemaSet
+        {
+            XmlResolver = new XmlUrlResolver()
+        };
+
+        var schemaDirectory = Path.Combine(AppContext.BaseDirectory, "TestData", "Schemas", "1.01");
+        AddSchema(
+            schemaSet,
+            SignedXml.XmlDsigNamespaceUrl,
+            Path.Combine(schemaDirectory, "xmldsig-core-schema.xsd"));
+        AddSchema(
+            schemaSet,
+            "http://www.sped.fazenda.gov.br/nfse",
+            Path.Combine(schemaDirectory, "DPS_v1.01.xsd"));
+        schemaSet.Compile();
+
+        var errors = new List<string>();
+        var document = XDocument.Parse(result.XmlContent, LoadOptions.PreserveWhitespace);
+
+        document.Validate(schemaSet, (_, args) => errors.Add(args.Message));
+
+        Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors));
+    }
+
+    private static void AddSchema(XmlSchemaSet schemaSet, string targetNamespace, string schemaPath)
+    {
+        var settings = new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Parse,
+            XmlResolver = null
+        };
+
+        using var reader = XmlReader.Create(schemaPath, settings);
+        schemaSet.Add(targetNamespace, reader);
     }
 }

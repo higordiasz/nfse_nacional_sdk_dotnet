@@ -12,6 +12,8 @@ namespace NFSeNacionalSdk.Serialization.Xml.Transmission;
 
 internal sealed class EmitDpsXmlBuilder
 {
+    private const int ApplicationVersionMaxLength = 20;
+
     private readonly EmitDpsXmlSigner _signer = new();
 
     public EmitDpsSerializationResult Build(
@@ -349,7 +351,11 @@ internal sealed class EmitDpsXmlBuilder
 
     private static string NormalizeApplicationVersion(string? value)
     {
-        return NormalizeOptionalText(value) ?? "NFSeNacionalSdk";
+        var normalized = NormalizeOptionalText(value) ?? "NFSeNacionalSdk";
+
+        return normalized.Length <= ApplicationVersionMaxLength
+            ? normalized
+            : normalized[..ApplicationVersionMaxLength];
     }
 
     private readonly record struct NormalizedTaxId(string Digits, bool IsCnpj, string TypeCode);

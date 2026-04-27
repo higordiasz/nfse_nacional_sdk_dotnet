@@ -6,6 +6,8 @@ Open-source .NET SDK for Brazil's NFSe National Standard, focused on clean integ
 
 > Project in early development stage.  
 > The initial goal is to provide a clean, reusable, and ERP-agnostic SDK for integration with the Brazilian NFSe National Standard.
+>
+> Current implementation includes NFS-e lookup by access key and the first synchronous DPS emission workflow for the SEFIN National API.
 
 ## Goals
 
@@ -25,12 +27,14 @@ Open-source .NET SDK for Brazil's NFSe National Standard, focused on clean integ
 
 ## Planned Features
 
-- [ ] Environment configuration
-- [ ] Request/response contracts
-- [ ] XML serialization and deserialization
-- [ ] HTTP transport layer
-- [ ] NFSe emission workflow
-- [ ] NFSe consultation by access key
+- [x] Environment configuration
+- [x] Request/response contracts
+- [x] XML serialization and deserialization
+- [x] HTTP transport layer
+- [x] NFSe emission workflow
+- [x] NFSe consultation by access key
+- [x] DPS XML signature
+- [x] DPS XML validation against the official v1.01 schema in tests
 - [ ] DPS consultation
 - [ ] Event registration
 - [ ] Event consultation
@@ -62,6 +66,12 @@ The project currently targets:
 
 - .NET 8
 - .NET 10
+
+## Technical References
+
+- Current NFSe technical documentation: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual
+- Production and restricted-production API endpoints: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/apis-prod-restrita-e-producao
+- Official schemas used by tests: `NFSe-ESQUEMAS_XSD-v1.01-20260209`
 
 ## Contributing
 
