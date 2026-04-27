@@ -36,6 +36,7 @@ Open-source .NET SDK for Brazil's NFSe National Standard, focused on clean integ
 - [x] DPS XML signature
 - [x] DPS XML validation against the official v1.01 schema in tests
 - [x] DPS consultation
+- [x] Municipal convention lookup
 - [ ] Event registration
 - [ ] Event consultation
 - [ ] Error normalization

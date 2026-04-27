@@ -8,6 +8,8 @@ public sealed class NFSeEndpointsOptions
 
     public string BaseUrl { get; init; } = string.Empty;
 
+    public string ParametrizationBaseUrl { get; init; } = string.Empty;
+
     public string MunicipalParametersByConventionPath => "/parametros_municipais/{codigoMunicipio}/convenio";
     public string MunicipalParametersByServiceCodePath => "/parametros_municipais/{codigoMunicipio}/{codigoServico}";
     public string NfsePath => "/nfse";
@@ -24,12 +26,14 @@ public sealed class NFSeEndpointsOptions
             NFSeEnvironment.Production => new NFSeEndpointsOptions
             {
                 Environment = environment,
-                BaseUrl = "https://sefin.nfse.gov.br/SefinNacional/"
+                BaseUrl = "https://sefin.nfse.gov.br/SefinNacional/",
+                ParametrizationBaseUrl = "https://adn.nfse.gov.br/parametrizacao/"
             },
             NFSeEnvironment.ProductionRestricted => new NFSeEndpointsOptions
             {
                 Environment = environment,
-                BaseUrl = "https://sefin.producaorestrita.nfse.gov.br/SefinNacional/"
+                BaseUrl = "https://sefin.producaorestrita.nfse.gov.br/SefinNacional/",
+                ParametrizationBaseUrl = "https://adn.producaorestrita.nfse.gov.br/parametrizacao/"
             },
             _ => throw new ArgumentOutOfRangeException(nameof(environment), environment, null)
         };

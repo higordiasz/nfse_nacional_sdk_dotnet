@@ -285,6 +285,59 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         };
     }
 
+    public async Task<GetMunicipalConventionResult> GetMunicipalConventionAsync(
+        GetMunicipalConventionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var response = await _transport.SendAsync(
+            new TransportRequest
+            {
+                Method = HttpMethod.Get,
+                Path = BuildMunicipalConventionPath(request.MunicipalityCode),
+                Accept = MediaTypes.ApplicationJson
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(response.Content))
+        {
+            return new GetMunicipalConventionResult
+            {
+                MunicipalityCode = request.MunicipalityCode,
+                IsAvailable = response.IsSuccessStatusCode,
+                JsonContent = null,
+                Messages = response.IsSuccessStatusCode
+                    ? Array.Empty<NFSeMessage>()
+                    : new NFSeMessage[]
+                    {
+                        new NFSeMessage
+                        {
+                            Description = $"Municipal convention lookup returned an empty payload with status code {(int)response.StatusCode}."
+                        }
+                    },
+                StatusCode = response.StatusCode
+            };
+        }
+
+        var apiEnvelope = DeserializeMunicipalConventionApiEnvelope(response.Content);
+        var messages = BuildMessages(apiEnvelope.Errors);
+
+        if (apiEnvelope.Error is not null)
+        {
+            messages = [..messages, CreateMessage(apiEnvelope.Error)];
+        }
+
+        return new GetMunicipalConventionResult
+        {
+            MunicipalityCode = request.MunicipalityCode,
+            IsAvailable = response.IsSuccessStatusCode && messages.Count == 0,
+            JsonContent = response.Content,
+            Messages = messages,
+            StatusCode = response.StatusCode
+        };
+    }
+
     public void Dispose()
     {
         if (_disposeTransport && _transport is IDisposable disposableTransport)
@@ -467,6 +520,18 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             StringComparison.Ordinal);
     }
 
+    private string BuildMunicipalConventionPath(string municipalityCode)
+    {
+        var path = _endpoints.MunicipalParametersByConventionPath.Replace(
+            "{codigoMunicipio}",
+            Uri.EscapeDataString(municipalityCode),
+            StringComparison.Ordinal);
+
+        return new Uri(
+            new Uri(_endpoints.ParametrizationBaseUrl, UriKind.Absolute),
+            path.TrimStart('/')).ToString();
+    }
+
     private static string? NormalizeOptionalText(string? value)
     {
         var normalized = value?.Trim();
@@ -487,6 +552,14 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             content,
             "The SEFIN API returned an empty JSON object for the DPS lookup.",
             "Failed to deserialize the JSON payload returned by the SEFIN API for the DPS lookup.");
+    }
+
+    private SefinNationalMunicipalConventionApiEnvelope DeserializeMunicipalConventionApiEnvelope(string content)
+    {
+        return DeserializeJson<SefinNationalMunicipalConventionApiEnvelope>(
+            content,
+            "The NFSe API returned an empty JSON object for the municipal convention lookup.",
+            "Failed to deserialize the JSON payload returned by the NFSe API for the municipal convention lookup.");
     }
 
     private SefinNationalTransmissionApiEnvelope DeserializeTransmissionApiEnvelope(string content)

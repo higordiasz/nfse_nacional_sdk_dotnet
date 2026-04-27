@@ -227,6 +227,78 @@ public sealed class NFSeClientTests
         Assert.Equal(NFSeTransmissionFixtures.ExpectedDpsId, result.DpsId);
     }
 
+    [Fact]
+    public async Task GetMunicipalConventionAsync_ShouldCallParametrizationApiAndReturnAvailableResult()
+    {
+        const string municipalityCode = "3204005";
+        var transport = new CapturingTransport(
+            HttpStatusCode.OK,
+            """
+            {
+              "codigoMunicipio": "3204005",
+              "conveniado": true
+            }
+            """);
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetMunicipalConventionAsync(new GetMunicipalConventionRequest
+        {
+            MunicipalityCode = municipalityCode
+        });
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        Assert.Equal(municipalityCode, result.MunicipalityCode);
+        Assert.NotNull(result.JsonContent);
+        Assert.Empty(result.Messages);
+
+        Assert.NotNull(transport.LastRequest);
+        Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
+        Assert.Equal(
+            "https://adn.producaorestrita.nfse.gov.br/parametrizacao/parametros_municipais/3204005/convenio",
+            transport.LastRequest.Path);
+        Assert.Equal("application/json", transport.LastRequest.Accept);
+    }
+
+    [Fact]
+    public async Task GetMunicipalConventionAsync_ShouldReturnUnavailableBusinessErrorResult()
+    {
+        const string municipalityCode = "3204005";
+        using var client = new NFSeClient(
+            new CapturingTransport(
+                HttpStatusCode.NotFound,
+                """
+                {
+                  "erro": {
+                    "codigo": "E0037",
+                    "descricao": "O codigo do municipio emissor informado na DPS e inexistente no cadastro de convenio municipal do sistema nacional."
+                  }
+                }
+                """),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetMunicipalConventionAsync(new GetMunicipalConventionRequest
+        {
+            MunicipalityCode = municipalityCode
+        });
+
+        Assert.False(result.IsAvailable);
+        Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
+        Assert.Equal(municipalityCode, result.MunicipalityCode);
+        Assert.NotNull(result.JsonContent);
+        Assert.Collection(result.Messages, message =>
+        {
+            Assert.Equal("E0037", message.Code);
+            Assert.Equal(
+                "O codigo do municipio emissor informado na DPS e inexistente no cadastro de convenio municipal do sistema nacional.",
+                message.Description);
+        });
+    }
+
     private static INFSeSerializer CreateSerializer() => new NFSeXmlSerializer();
 
     private static string DecodePostedDpsXml(TransportRequest? request)

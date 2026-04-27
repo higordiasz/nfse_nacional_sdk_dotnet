@@ -17,6 +17,10 @@ public interface INFSeClient
         GetDpsByIdRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<GetMunicipalConventionResult> GetMunicipalConventionAsync(
+        GetMunicipalConventionRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<GetNfseByAccessKeyResult> GetNfseByAccessKeyAsync(
         GetNfseByAccessKeyRequest request,
         CancellationToken cancellationToken = default);

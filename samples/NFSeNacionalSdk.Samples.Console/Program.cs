@@ -16,7 +16,8 @@ var configuration = new SampleConfiguration
     CertificatePath = Normalize(Environment.GetEnvironmentVariable("NFSE_CERTIFICATE_PATH")),
     CertificatePassword = Environment.GetEnvironmentVariable("NFSE_CERTIFICATE_PASSWORD"),
     AccessKey = Normalize(Environment.GetEnvironmentVariable("NFSE_ACCESS_KEY")),
-    DpsId = Normalize(Environment.GetEnvironmentVariable("NFSE_DPS_ID"))
+    DpsId = Normalize(Environment.GetEnvironmentVariable("NFSE_DPS_ID")),
+    MunicipalityCode = Normalize(Environment.GetEnvironmentVariable("NFSE_MUNICIPALITY_CODE"))
 };
 
 WriteWelcome(configuration);
@@ -42,15 +43,18 @@ while (true)
             await ExecuteDpsCheckAsync(configuration);
             break;
         case "5":
-            ConfigureEnvironment(configuration);
+            await ExecuteMunicipalConventionLookupAsync(configuration);
             break;
         case "6":
-            ConfigureCertificate(configuration);
+            ConfigureEnvironment(configuration);
             break;
         case "7":
-            ShowResolvedEndpoints(configuration.Environment);
+            ConfigureCertificate(configuration);
             break;
         case "8":
+            ShowResolvedEndpoints(configuration.Environment);
+            break;
+        case "9":
             return;
         default:
             Console.WriteLine("Opcao invalida. Escolha uma das opcoes do menu.");
@@ -141,6 +145,13 @@ static async Task ExecuteEmissionAsync(SampleConfiguration configuration)
     }
 
     var request = PromptEmissionRequest();
+    configuration.MunicipalityCode = request.MunicipalityCode;
+
+    if (!await ConfirmMunicipalConventionAsync(client.Instance, configuration.Environment, request.MunicipalityCode))
+    {
+        return;
+    }
+
     var endpoints = NFSeEndpointsOptions.For(configuration.Environment);
     var resolvedUrl = new Uri(new Uri(endpoints.BaseUrl, UriKind.Absolute), endpoints.NfsePath.TrimStart('/'));
 
@@ -196,6 +207,128 @@ static async Task ExecuteEmissionAsync(SampleConfiguration configuration)
     }
 
     Console.WriteLine();
+}
+
+static async Task ExecuteMunicipalConventionLookupAsync(SampleConfiguration configuration)
+{
+    configuration.MunicipalityCode = PromptForValue(
+        "Codigo IBGE do municipio",
+        configuration.MunicipalityCode,
+        allowEmpty: false);
+
+    using var client = CreateClient(configuration);
+    if (client is null)
+    {
+        return;
+    }
+
+    var endpoints = NFSeEndpointsOptions.For(configuration.Environment);
+    var resolvedPath = endpoints.MunicipalParametersByConventionPath.Replace(
+        "{codigoMunicipio}",
+        Uri.EscapeDataString(configuration.MunicipalityCode),
+        StringComparison.Ordinal);
+    var resolvedUrl = new Uri(new Uri(endpoints.ParametrizationBaseUrl, UriKind.Absolute), resolvedPath.TrimStart('/'));
+
+    Console.WriteLine();
+    Console.WriteLine("Executando consulta de convenio municipal...");
+    Console.WriteLine($"Ambiente: {GetEnvironmentLabel(configuration.Environment)}");
+    Console.WriteLine($"BaseUrl Parametrizacao: {endpoints.ParametrizationBaseUrl}");
+    Console.WriteLine($"Path: {resolvedPath}");
+    Console.WriteLine($"URL final: {resolvedUrl}");
+    WriteCertificateSummary(client.CertificatePath, client.Certificate);
+
+    try
+    {
+        var result = await client.Instance.GetMunicipalConventionAsync(new GetMunicipalConventionRequest
+        {
+            MunicipalityCode = configuration.MunicipalityCode
+        });
+
+        Console.WriteLine();
+        Console.WriteLine("Resultado da consulta de convenio");
+        Console.WriteLine($"HTTP: {(int)result.StatusCode} ({result.StatusCode})");
+        Console.WriteLine($"Municipio: {result.MunicipalityCode}");
+        Console.WriteLine($"Convenio disponivel: {result.IsAvailable}");
+        WriteMessages(result.Messages);
+        WriteJsonIfPresent(result.JsonContent);
+    }
+    catch (NFSeTransportException exception)
+    {
+        Console.WriteLine($"Falha de transporte ao consultar o convenio municipal: {exception.Message}");
+        WriteInnerException(exception);
+    }
+    catch (NFSeSerializationException exception)
+    {
+        Console.WriteLine($"Falha ao interpretar o retorno da consulta de convenio: {exception.Message}");
+        WriteInnerException(exception);
+    }
+    catch (Exception exception)
+    {
+        Console.WriteLine($"Falha inesperada durante a consulta de convenio: {exception.Message}");
+        WriteInnerException(exception);
+    }
+
+    Console.WriteLine();
+}
+
+static async Task<bool> ConfirmMunicipalConventionAsync(
+    NFSeClient client,
+    NFSeEnvironment environment,
+    string municipalityCode)
+{
+    var endpoints = NFSeEndpointsOptions.For(environment);
+    var resolvedPath = endpoints.MunicipalParametersByConventionPath.Replace(
+        "{codigoMunicipio}",
+        Uri.EscapeDataString(municipalityCode),
+        StringComparison.Ordinal);
+    var resolvedUrl = new Uri(new Uri(endpoints.ParametrizationBaseUrl, UriKind.Absolute), resolvedPath.TrimStart('/'));
+
+    Console.WriteLine();
+    Console.WriteLine("Validando convenio municipal antes da emissao...");
+    Console.WriteLine($"Ambiente: {GetEnvironmentLabel(environment)}");
+    Console.WriteLine($"BaseUrl Parametrizacao: {endpoints.ParametrizationBaseUrl}");
+    Console.WriteLine($"Path: {resolvedPath}");
+    Console.WriteLine($"URL final: {resolvedUrl}");
+
+    try
+    {
+        var result = await client.GetMunicipalConventionAsync(new GetMunicipalConventionRequest
+        {
+            MunicipalityCode = municipalityCode
+        });
+
+        Console.WriteLine();
+        Console.WriteLine("Resultado da validacao de convenio");
+        Console.WriteLine($"HTTP: {(int)result.StatusCode} ({result.StatusCode})");
+        Console.WriteLine($"Municipio: {result.MunicipalityCode}");
+        Console.WriteLine($"Convenio disponivel: {result.IsAvailable}");
+        WriteMessages(result.Messages);
+
+        if (result.IsAvailable)
+        {
+            return true;
+        }
+
+        return PromptYesNo("Continuar emissao mesmo sem convenio validado? (s/N)");
+    }
+    catch (NFSeTransportException exception)
+    {
+        Console.WriteLine($"Falha de transporte ao validar o convenio municipal: {exception.Message}");
+        WriteInnerException(exception);
+        return PromptYesNo("Continuar emissao mesmo sem validar o convenio? (s/N)");
+    }
+    catch (NFSeSerializationException exception)
+    {
+        Console.WriteLine($"Falha ao interpretar o retorno da validacao de convenio: {exception.Message}");
+        WriteInnerException(exception);
+        return PromptYesNo("Continuar emissao mesmo sem validar o convenio? (s/N)");
+    }
+    catch (Exception exception)
+    {
+        Console.WriteLine($"Falha inesperada durante a validacao de convenio: {exception.Message}");
+        WriteInnerException(exception);
+        return PromptYesNo("Continuar emissao mesmo sem validar o convenio? (s/N)");
+    }
 }
 
 static async Task ExecuteDpsLookupAsync(SampleConfiguration configuration)
@@ -472,9 +605,11 @@ static void ShowResolvedEndpoints(NFSeEnvironment environment)
     Console.WriteLine("Endpoints resolvidos");
     Console.WriteLine($"Ambiente: {GetEnvironmentLabel(environment)}");
     Console.WriteLine($"BaseUrl: {endpoints.BaseUrl}");
+    Console.WriteLine($"BaseUrl Parametrizacao: {endpoints.ParametrizationBaseUrl}");
     Console.WriteLine($"Consulta por chave: {endpoints.NfseByAccessKeyPath}");
     Console.WriteLine($"Emissao sincrona NFS-e: {endpoints.NfsePath}");
     Console.WriteLine($"Consulta DPS por Id: {endpoints.DpsByIdPath}");
+    Console.WriteLine($"Convenio municipal: {endpoints.MunicipalParametersByConventionPath}");
     Console.WriteLine();
 }
 
@@ -499,6 +634,11 @@ static void WriteWelcome(SampleConfiguration configuration)
         Console.WriteLine($"DPS inicial: {configuration.DpsId}");
     }
 
+    if (!string.IsNullOrWhiteSpace(configuration.MunicipalityCode))
+    {
+        Console.WriteLine($"Municipio inicial: {configuration.MunicipalityCode}");
+    }
+
     Console.WriteLine();
 }
 
@@ -509,10 +649,11 @@ static void WriteMenu(SampleConfiguration configuration)
     Console.WriteLine("2. Emitir DPS e gerar NFS-e");
     Console.WriteLine("3. Consultar DPS por id");
     Console.WriteLine("4. Verificar DPS por HEAD");
-    Console.WriteLine("5. Alterar ambiente");
-    Console.WriteLine("6. Configurar certificado");
-    Console.WriteLine("7. Mostrar endpoints resolvidos");
-    Console.WriteLine("8. Sair");
+    Console.WriteLine("5. Consultar convenio municipal");
+    Console.WriteLine("6. Alterar ambiente");
+    Console.WriteLine("7. Configurar certificado");
+    Console.WriteLine("8. Mostrar endpoints resolvidos");
+    Console.WriteLine("9. Sair");
     Console.WriteLine($"Ambiente atual: {GetEnvironmentLabel(configuration.Environment)}");
     Console.Write("Escolha uma opcao: ");
 }
@@ -544,6 +685,12 @@ static string PromptForValue(string label, string? currentValue, bool allowEmpty
     }
 
     return value?.Trim() ?? string.Empty;
+}
+
+static bool PromptYesNo(string label)
+{
+    Console.Write($"{label}: ");
+    return string.Equals(Console.ReadLine()?.Trim(), "s", StringComparison.OrdinalIgnoreCase);
 }
 
 static TEnum PromptEnum<TEnum>(string label, TEnum defaultValue)
@@ -831,6 +978,8 @@ sealed class SampleConfiguration
     public string? AccessKey { get; set; }
 
     public string? DpsId { get; set; }
+
+    public string? MunicipalityCode { get; set; }
 }
 
 sealed class ClientContext : IDisposable
