@@ -15,7 +15,8 @@ var configuration = new SampleConfiguration
     Environment = ParseEnvironment(Environment.GetEnvironmentVariable("NFSE_ENVIRONMENT")),
     CertificatePath = Normalize(Environment.GetEnvironmentVariable("NFSE_CERTIFICATE_PATH")),
     CertificatePassword = Environment.GetEnvironmentVariable("NFSE_CERTIFICATE_PASSWORD"),
-    AccessKey = Normalize(Environment.GetEnvironmentVariable("NFSE_ACCESS_KEY"))
+    AccessKey = Normalize(Environment.GetEnvironmentVariable("NFSE_ACCESS_KEY")),
+    DpsId = Normalize(Environment.GetEnvironmentVariable("NFSE_DPS_ID"))
 };
 
 WriteWelcome(configuration);
@@ -35,15 +36,21 @@ while (true)
             await ExecuteEmissionAsync(configuration);
             break;
         case "3":
-            ConfigureEnvironment(configuration);
+            await ExecuteDpsLookupAsync(configuration);
             break;
         case "4":
-            ConfigureCertificate(configuration);
+            await ExecuteDpsCheckAsync(configuration);
             break;
         case "5":
-            ShowResolvedEndpoints(configuration.Environment);
+            ConfigureEnvironment(configuration);
             break;
         case "6":
+            ConfigureCertificate(configuration);
+            break;
+        case "7":
+            ShowResolvedEndpoints(configuration.Environment);
+            break;
+        case "8":
             return;
         default:
             Console.WriteLine("Opcao invalida. Escolha uma das opcoes do menu.");
@@ -156,6 +163,9 @@ static async Task ExecuteEmissionAsync(SampleConfiguration configuration)
         Console.WriteLine($"DpsId: {result.DpsId ?? "(nao informado)"}");
         Console.WriteLine($"AccessKey: {result.AccessKey ?? "(nao informado)"}");
 
+        configuration.DpsId = result.DpsId ?? configuration.DpsId;
+        configuration.AccessKey = result.AccessKey ?? configuration.AccessKey;
+
         if (result.Document is not null)
         {
             Console.WriteLine($"Numero da NFS-e: {result.Document.Number ?? "(nao informado)"}");
@@ -182,6 +192,127 @@ static async Task ExecuteEmissionAsync(SampleConfiguration configuration)
     catch (Exception exception)
     {
         Console.WriteLine($"Falha inesperada durante a emissao: {exception.Message}");
+        WriteInnerException(exception);
+    }
+
+    Console.WriteLine();
+}
+
+static async Task ExecuteDpsLookupAsync(SampleConfiguration configuration)
+{
+    configuration.DpsId = PromptForValue(
+        "Informe o id da DPS",
+        configuration.DpsId,
+        allowEmpty: false);
+
+    using var client = CreateClient(configuration);
+    if (client is null)
+    {
+        return;
+    }
+
+    var endpoints = NFSeEndpointsOptions.For(configuration.Environment);
+    var resolvedPath = endpoints.DpsByIdPath.Replace(
+        "{id}",
+        Uri.EscapeDataString(configuration.DpsId),
+        StringComparison.Ordinal);
+    var resolvedUrl = new Uri(new Uri(endpoints.BaseUrl, UriKind.Absolute), resolvedPath.TrimStart('/'));
+
+    Console.WriteLine();
+    Console.WriteLine("Executando consulta de DPS por id...");
+    Console.WriteLine($"Ambiente: {GetEnvironmentLabel(configuration.Environment)}");
+    Console.WriteLine($"BaseUrl: {endpoints.BaseUrl}");
+    Console.WriteLine($"Path: {resolvedPath}");
+    Console.WriteLine($"URL final: {resolvedUrl}");
+    WriteCertificateSummary(client.CertificatePath, client.Certificate);
+
+    try
+    {
+        var result = await client.Instance.GetDpsByIdAsync(new GetDpsByIdRequest
+        {
+            DpsId = configuration.DpsId
+        });
+
+        Console.WriteLine();
+        Console.WriteLine("Resultado da consulta de DPS");
+        Console.WriteLine($"HTTP: {(int)result.StatusCode} ({result.StatusCode})");
+        Console.WriteLine($"Success: {result.Success}");
+        Console.WriteLine($"DpsId: {result.DpsId}");
+        Console.WriteLine($"AccessKey: {result.AccessKey ?? "(nao informado)"}");
+
+        configuration.DpsId = result.DpsId;
+        configuration.AccessKey = result.AccessKey ?? configuration.AccessKey;
+
+        WriteMessages(result.Messages);
+    }
+    catch (NFSeTransportException exception)
+    {
+        Console.WriteLine($"Falha de transporte ao consultar a DPS: {exception.Message}");
+        WriteInnerException(exception);
+    }
+    catch (NFSeSerializationException exception)
+    {
+        Console.WriteLine($"Falha ao interpretar o retorno da consulta de DPS: {exception.Message}");
+        WriteInnerException(exception);
+    }
+    catch (Exception exception)
+    {
+        Console.WriteLine($"Falha inesperada durante a consulta de DPS: {exception.Message}");
+        WriteInnerException(exception);
+    }
+
+    Console.WriteLine();
+}
+
+static async Task ExecuteDpsCheckAsync(SampleConfiguration configuration)
+{
+    configuration.DpsId = PromptForValue(
+        "Informe o id da DPS",
+        configuration.DpsId,
+        allowEmpty: false);
+
+    using var client = CreateClient(configuration);
+    if (client is null)
+    {
+        return;
+    }
+
+    var endpoints = NFSeEndpointsOptions.For(configuration.Environment);
+    var resolvedPath = endpoints.DpsByIdPath.Replace(
+        "{id}",
+        Uri.EscapeDataString(configuration.DpsId),
+        StringComparison.Ordinal);
+    var resolvedUrl = new Uri(new Uri(endpoints.BaseUrl, UriKind.Absolute), resolvedPath.TrimStart('/'));
+
+    Console.WriteLine();
+    Console.WriteLine("Executando verificacao de DPS por HEAD...");
+    Console.WriteLine($"Ambiente: {GetEnvironmentLabel(configuration.Environment)}");
+    Console.WriteLine($"BaseUrl: {endpoints.BaseUrl}");
+    Console.WriteLine($"Path: {resolvedPath}");
+    Console.WriteLine($"URL final: {resolvedUrl}");
+    WriteCertificateSummary(client.CertificatePath, client.Certificate);
+
+    try
+    {
+        var result = await client.Instance.CheckDpsByIdAsync(new GetDpsByIdRequest
+        {
+            DpsId = configuration.DpsId
+        });
+
+        Console.WriteLine();
+        Console.WriteLine("Resultado da verificacao de DPS");
+        Console.WriteLine($"HTTP: {(int)result.StatusCode} ({result.StatusCode})");
+        Console.WriteLine($"DpsId: {result.DpsId}");
+        Console.WriteLine($"NFS-e gerada: {result.Generated}");
+    }
+    catch (NFSeTransportException exception)
+    {
+        Console.WriteLine($"Falha de transporte ao verificar a DPS: {exception.Message}");
+        WriteInnerException(exception);
+    }
+    catch (Exception exception)
+    {
+        Console.WriteLine($"Falha inesperada durante a verificacao de DPS: {exception.Message}");
         WriteInnerException(exception);
     }
 
@@ -359,6 +490,11 @@ static void WriteWelcome(SampleConfiguration configuration)
         Console.WriteLine($"Chave inicial: {configuration.AccessKey}");
     }
 
+    if (!string.IsNullOrWhiteSpace(configuration.DpsId))
+    {
+        Console.WriteLine($"DPS inicial: {configuration.DpsId}");
+    }
+
     Console.WriteLine();
 }
 
@@ -367,10 +503,12 @@ static void WriteMenu(SampleConfiguration configuration)
     Console.WriteLine("Menu");
     Console.WriteLine("1. Consultar NFS-e por chave");
     Console.WriteLine("2. Emitir DPS e gerar NFS-e");
-    Console.WriteLine("3. Alterar ambiente");
-    Console.WriteLine("4. Configurar certificado");
-    Console.WriteLine("5. Mostrar endpoints resolvidos");
-    Console.WriteLine("6. Sair");
+    Console.WriteLine("3. Consultar DPS por id");
+    Console.WriteLine("4. Verificar DPS por HEAD");
+    Console.WriteLine("5. Alterar ambiente");
+    Console.WriteLine("6. Configurar certificado");
+    Console.WriteLine("7. Mostrar endpoints resolvidos");
+    Console.WriteLine("8. Sair");
     Console.WriteLine($"Ambiente atual: {GetEnvironmentLabel(configuration.Environment)}");
     Console.Write("Escolha uma opcao: ");
 }
@@ -665,6 +803,8 @@ sealed class SampleConfiguration
     public string? CertificatePassword { get; set; }
 
     public string? AccessKey { get; set; }
+
+    public string? DpsId { get; set; }
 }
 
 sealed class ClientContext : IDisposable

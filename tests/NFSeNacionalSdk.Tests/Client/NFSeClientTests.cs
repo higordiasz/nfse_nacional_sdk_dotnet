@@ -136,6 +136,97 @@ public sealed class NFSeClientTests
         });
     }
 
+    [Fact]
+    public async Task GetDpsByIdAsync_ShouldReturnAccessKeyForGeneratedDps()
+    {
+        var transport = new CapturingTransport(HttpStatusCode.OK, NFSeTransmissionFixtures.DpsLookupSuccessApiResponseJson);
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetDpsByIdAsync(new GetDpsByIdRequest
+        {
+            DpsId = NFSeTransmissionFixtures.ExpectedDpsId
+        });
+
+        Assert.True(result.Success);
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        Assert.Equal(NFSeTransmissionFixtures.ExpectedDpsId, result.DpsId);
+        Assert.Equal(NFSeLookupXmlFixtures.AccessKey, result.AccessKey);
+        Assert.Empty(result.Messages);
+
+        Assert.NotNull(transport.LastRequest);
+        Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
+        Assert.Equal($"/dps/{NFSeTransmissionFixtures.ExpectedDpsId}", transport.LastRequest.Path);
+        Assert.Equal("application/json", transport.LastRequest.Accept);
+    }
+
+    [Fact]
+    public async Task GetDpsByIdAsync_ShouldReturnBusinessErrorWhenDpsIsNotFound()
+    {
+        using var client = new NFSeClient(
+            new CapturingTransport(HttpStatusCode.NotFound, NFSeTransmissionFixtures.DpsLookupErrorApiResponseJson),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetDpsByIdAsync(new GetDpsByIdRequest
+        {
+            DpsId = NFSeTransmissionFixtures.ExpectedDpsId
+        });
+
+        Assert.False(result.Success);
+        Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
+        Assert.Equal(NFSeTransmissionFixtures.ExpectedDpsId, result.DpsId);
+        Assert.Null(result.AccessKey);
+        Assert.Collection(result.Messages, message =>
+        {
+            Assert.Equal("E2501", message.Code);
+            Assert.Equal("DPS nao encontrada.", message.Description);
+        });
+    }
+
+    [Fact]
+    public async Task CheckDpsByIdAsync_ShouldSendHeadAndReturnGeneratedStatus()
+    {
+        var transport = new CapturingTransport(HttpStatusCode.OK, string.Empty);
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.CheckDpsByIdAsync(new GetDpsByIdRequest
+        {
+            DpsId = NFSeTransmissionFixtures.ExpectedDpsId
+        });
+
+        Assert.True(result.Generated);
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        Assert.Equal(NFSeTransmissionFixtures.ExpectedDpsId, result.DpsId);
+
+        Assert.NotNull(transport.LastRequest);
+        Assert.Equal(HttpMethod.Head, transport.LastRequest!.Method);
+        Assert.Equal($"/dps/{NFSeTransmissionFixtures.ExpectedDpsId}", transport.LastRequest.Path);
+    }
+
+    [Fact]
+    public async Task CheckDpsByIdAsync_ShouldReturnNotGeneratedForNotFoundStatus()
+    {
+        using var client = new NFSeClient(
+            new CapturingTransport(HttpStatusCode.NotFound, string.Empty),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.CheckDpsByIdAsync(new GetDpsByIdRequest
+        {
+            DpsId = NFSeTransmissionFixtures.ExpectedDpsId
+        });
+
+        Assert.False(result.Generated);
+        Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
+        Assert.Equal(NFSeTransmissionFixtures.ExpectedDpsId, result.DpsId);
+    }
+
     private static INFSeSerializer CreateSerializer() => new NFSeXmlSerializer();
 
     private static string DecodePostedDpsXml(TransportRequest? request)

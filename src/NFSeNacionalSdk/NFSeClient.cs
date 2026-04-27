@@ -216,6 +216,75 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         };
     }
 
+    public async Task<GetDpsByIdResult> GetDpsByIdAsync(
+        GetDpsByIdRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var response = await _transport.SendAsync(
+            new TransportRequest
+            {
+                Method = HttpMethod.Get,
+                Path = BuildDpsByIdPath(request.DpsId),
+                Accept = MediaTypes.ApplicationJson
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(response.Content))
+        {
+            throw new NFSeTransportException(
+                $"DPS consultation returned an empty payload with status code {(int)response.StatusCode}.");
+        }
+
+        var apiEnvelope = DeserializeDpsLookupApiEnvelope(response.Content);
+        var messages = BuildMessages(apiEnvelope.Errors);
+
+        if (apiEnvelope.Error is not null)
+        {
+            messages = [..messages, CreateMessage(apiEnvelope.Error)];
+        }
+
+        var accessKey = NormalizeOptionalText(apiEnvelope.AccessKey);
+        if (accessKey is null && messages.Count == 0)
+        {
+            throw new NFSeTransportException(
+                $"DPS consultation failed with status code {(int)response.StatusCode} and returned an unsupported JSON payload.");
+        }
+
+        return new GetDpsByIdResult
+        {
+            DpsId = NormalizeOptionalText(apiEnvelope.GetResolvedDpsId()) ?? request.DpsId,
+            AccessKey = accessKey,
+            Success = response.IsSuccessStatusCode && accessKey is not null,
+            Messages = messages,
+            StatusCode = response.StatusCode
+        };
+    }
+
+    public async Task<CheckDpsByIdResult> CheckDpsByIdAsync(
+        GetDpsByIdRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var response = await _transport.SendAsync(
+            new TransportRequest
+            {
+                Method = HttpMethod.Head,
+                Path = BuildDpsByIdPath(request.DpsId),
+                Accept = MediaTypes.ApplicationJson
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return new CheckDpsByIdResult
+        {
+            DpsId = request.DpsId,
+            Generated = response.IsSuccessStatusCode,
+            StatusCode = response.StatusCode
+        };
+    }
+
     public void Dispose()
     {
         if (_disposeTransport && _transport is IDisposable disposableTransport)
@@ -390,12 +459,34 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             : [..messages.Select(CreateMessage)];
     }
 
+    private string BuildDpsByIdPath(string dpsId)
+    {
+        return _endpoints.DpsByIdPath.Replace(
+            "{id}",
+            Uri.EscapeDataString(dpsId),
+            StringComparison.Ordinal);
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
     private SefinNationalLookupApiEnvelope DeserializeLookupApiEnvelope(string content)
     {
         return DeserializeJson<SefinNationalLookupApiEnvelope>(
             content,
             "The SEFIN API returned an empty JSON object for the NFS-e lookup.",
             "Failed to deserialize the JSON payload returned by the SEFIN API for the NFS-e lookup.");
+    }
+
+    private SefinNationalDpsLookupApiEnvelope DeserializeDpsLookupApiEnvelope(string content)
+    {
+        return DeserializeJson<SefinNationalDpsLookupApiEnvelope>(
+            content,
+            "The SEFIN API returned an empty JSON object for the DPS lookup.",
+            "Failed to deserialize the JSON payload returned by the SEFIN API for the DPS lookup.");
     }
 
     private SefinNationalTransmissionApiEnvelope DeserializeTransmissionApiEnvelope(string content)

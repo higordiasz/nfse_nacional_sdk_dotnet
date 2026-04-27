@@ -9,6 +9,14 @@ public interface INFSeClient
         EmitDpsRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<GetDpsByIdResult> GetDpsByIdAsync(
+        GetDpsByIdRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<CheckDpsByIdResult> CheckDpsByIdAsync(
+        GetDpsByIdRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<GetNfseByAccessKeyResult> GetNfseByAccessKeyAsync(
         GetNfseByAccessKeyRequest request,
         CancellationToken cancellationToken = default);

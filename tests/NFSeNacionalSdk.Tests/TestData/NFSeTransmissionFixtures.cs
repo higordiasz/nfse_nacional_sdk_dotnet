@@ -100,6 +100,28 @@ internal static class NFSeTransmissionFixtures
         }
         """;
 
+    public static string DpsLookupSuccessApiResponseJson => $$"""
+        {
+          "tipoAmbiente": 2,
+          "versaoAplicativo": "SefinNacional_1.6.0",
+          "dataHoraProcessamento": "2026-04-13T16:56:04.1505667-03:00",
+          "idDps": "{{ExpectedDpsId}}",
+          "chaveAcesso": "{{NFSeLookupXmlFixtures.AccessKey}}"
+        }
+        """;
+
+    public static string DpsLookupErrorApiResponseJson => """
+        {
+          "tipoAmbiente": 2,
+          "versaoAplicativo": "SefinNacional_1.6.0",
+          "dataHoraProcessamento": "2026-04-13T16:56:04.1505667-03:00",
+          "erro": {
+            "codigo": "E2501",
+            "descricao": "DPS nao encontrada."
+          }
+        }
+        """;
+
     public static string DecodeGZipBase64(string content)
     {
         var bytes = Convert.FromBase64String(content);
