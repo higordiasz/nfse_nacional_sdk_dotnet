@@ -91,6 +91,12 @@ public sealed class EmitDpsService
     public string? InternalCode { get; init; }
 
     public required decimal Amount { get; init; }
+
+    public decimal? AmountReceivedByIntermediary { get; init; }
+
+    public decimal? UnconditionalDiscountAmount { get; init; }
+
+    public decimal? ConditionalDiscountAmount { get; init; }
 }
 
 public sealed class EmitDpsTaxation
@@ -98,6 +104,8 @@ public sealed class EmitDpsTaxation
     public NFSeIssTaxationType IssTaxationType { get; init; } = NFSeIssTaxationType.TaxableOperation;
 
     public NFSeIssWithholdingType IssWithholdingType { get; init; } = NFSeIssWithholdingType.NotWithheld;
+
+    public decimal? IssRate { get; init; }
 
     public NFSeTotalTaxIndicator TotalTaxIndicator { get; init; } = NFSeTotalTaxIndicator.NotInformed;
 }

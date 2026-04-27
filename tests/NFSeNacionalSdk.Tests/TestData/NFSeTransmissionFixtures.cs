@@ -13,7 +13,7 @@ internal static class NFSeTransmissionFixtures
     public const string Number = "1";
     public const string ExpectedDpsId = "DPS355030821234567800019970000000000000000001";
 
-    public static EmitDpsRequest CreateRequest()
+    public static EmitDpsRequest CreateRequest(bool includeOptionalValues = false)
     {
         return new EmitDpsRequest
         {
@@ -54,12 +54,16 @@ internal static class NFSeTransmissionFixtures
                 NationalTaxationCode = "140101",
                 Description = "Consultoria especializada",
                 NationalClassificationCode = "111032200",
-                Amount = 1500.75m
+                Amount = 1500.75m,
+                AmountReceivedByIntermediary = includeOptionalValues ? 1450.75m : null,
+                UnconditionalDiscountAmount = includeOptionalValues ? 100.00m : null,
+                ConditionalDiscountAmount = includeOptionalValues ? 50.25m : null
             },
             Taxation = new EmitDpsTaxation
             {
                 IssTaxationType = NFSeIssTaxationType.TaxableOperation,
                 IssWithholdingType = NFSeIssWithholdingType.NotWithheld,
+                IssRate = includeOptionalValues ? 5.00m : null,
                 TotalTaxIndicator = NFSeTotalTaxIndicator.NotInformed
             }
         };

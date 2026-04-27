@@ -358,7 +358,10 @@ static EmitDpsRequest PromptEmissionRequest()
         Description = PromptForValue("Descricao do servico", null, allowEmpty: false),
         NationalClassificationCode = PromptForValue("Codigo NBS (opcional)", null, allowEmpty: true),
         InternalCode = PromptForValue("Codigo interno do contribuinte (opcional)", null, allowEmpty: true),
-        Amount = PromptDecimal("Valor do servico", 1.00m)
+        Amount = PromptDecimal("Valor do servico", 1.00m),
+        AmountReceivedByIntermediary = PromptOptionalDecimal("Valor recebido pelo intermediario (opcional)"),
+        UnconditionalDiscountAmount = PromptOptionalDecimal("Desconto incondicionado (opcional)"),
+        ConditionalDiscountAmount = PromptOptionalDecimal("Desconto condicionado (opcional)")
     };
 
     var taxation = new EmitDpsTaxation
@@ -369,6 +372,7 @@ static EmitDpsRequest PromptEmissionRequest()
         IssWithholdingType = PromptEnum(
             "Retencao do ISSQN (1 = Nao retido, 2 = Retido pelo tomador, 3 = Retido pelo intermediario)",
             NFSeIssWithholdingType.NotWithheld),
+        IssRate = PromptOptionalDecimal("Aliquota do ISSQN em percentual (opcional)"),
         TotalTaxIndicator = NFSeTotalTaxIndicator.NotInformed
     };
 
@@ -625,6 +629,28 @@ static decimal PromptDecimal(string label, decimal defaultValue)
 
     Console.WriteLine("Valor invalido.");
     return PromptDecimal(label, defaultValue);
+}
+
+static decimal? PromptOptionalDecimal(string label)
+{
+    var value = PromptForValue(label, null, allowEmpty: true);
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return null;
+    }
+
+    if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var invariantResult))
+    {
+        return invariantResult;
+    }
+
+    if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out var currentCultureResult))
+    {
+        return currentCultureResult;
+    }
+
+    Console.WriteLine("Valor invalido.");
+    return PromptOptionalDecimal(label);
 }
 
 static string ReadPassword()

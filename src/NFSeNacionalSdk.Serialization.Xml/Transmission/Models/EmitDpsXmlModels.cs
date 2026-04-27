@@ -183,14 +183,29 @@ public sealed class EmitDpsValuesXml
     [XmlElement("vServPrest", Order = 0)]
     public EmitDpsServiceValuesXml ServiceValues { get; set; } = new();
 
-    [XmlElement("trib", Order = 1)]
+    [XmlElement("vDescCondIncond", Order = 1)]
+    public EmitDpsDiscountValuesXml? DiscountValues { get; set; }
+
+    [XmlElement("trib", Order = 3)]
     public EmitDpsTaxationXml Taxation { get; set; } = new();
 }
 
 public sealed class EmitDpsServiceValuesXml
 {
+    [XmlElement("vReceb", Order = 0)]
+    public string? ReceivedAmount { get; set; }
+
     [XmlElement("vServ", Order = 1)]
     public decimal Amount { get; set; }
+}
+
+public sealed class EmitDpsDiscountValuesXml
+{
+    [XmlElement("vDescIncond", Order = 0)]
+    public string? UnconditionalAmount { get; set; }
+
+    [XmlElement("vDescCond", Order = 1)]
+    public string? ConditionalAmount { get; set; }
 }
 
 public sealed class EmitDpsTaxationXml
@@ -209,6 +224,9 @@ public sealed class EmitDpsMunicipalTaxationXml
 
     [XmlElement("tpRetISSQN", Order = 1)]
     public string IssWithholdingType { get; set; } = string.Empty;
+
+    [XmlElement("pAliq", Order = 2)]
+    public string? IssRate { get; set; }
 }
 
 public sealed class EmitDpsTotalTaxXml

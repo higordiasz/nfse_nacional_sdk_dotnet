@@ -168,14 +168,19 @@ internal sealed class EmitDpsXmlBuilder
         {
             ServiceValues = new EmitDpsServiceValuesXml
             {
+                ReceivedAmount = FormatOptionalAmount(
+                    service.AmountReceivedByIntermediary,
+                    nameof(service.AmountReceivedByIntermediary)),
                 Amount = decimal.Round(service.Amount, 2, MidpointRounding.AwayFromZero)
             },
+            DiscountValues = BuildDiscountValues(service),
             Taxation = new EmitDpsTaxationXml
             {
                 MunicipalTaxation = new EmitDpsMunicipalTaxationXml
                 {
                     IssTaxationType = ((int)taxation.IssTaxationType).ToString(CultureInfo.InvariantCulture),
-                    IssWithholdingType = ((int)taxation.IssWithholdingType).ToString(CultureInfo.InvariantCulture)
+                    IssWithholdingType = ((int)taxation.IssWithholdingType).ToString(CultureInfo.InvariantCulture),
+                    IssRate = FormatOptionalIssRate(taxation.IssRate, nameof(taxation.IssRate))
                 },
                 TotalTax = new EmitDpsTotalTaxXml
                 {
@@ -183,6 +188,24 @@ internal sealed class EmitDpsXmlBuilder
                 }
             }
         };
+    }
+
+    private static EmitDpsDiscountValuesXml? BuildDiscountValues(EmitDpsService service)
+    {
+        var unconditionalAmount = FormatOptionalAmount(
+            service.UnconditionalDiscountAmount,
+            nameof(service.UnconditionalDiscountAmount));
+        var conditionalAmount = FormatOptionalAmount(
+            service.ConditionalDiscountAmount,
+            nameof(service.ConditionalDiscountAmount));
+
+        return unconditionalAmount is null && conditionalAmount is null
+            ? null
+            : new EmitDpsDiscountValuesXml
+            {
+                UnconditionalAmount = unconditionalAmount,
+                ConditionalAmount = conditionalAmount
+            };
     }
 
     private static string SerializeUnsigned(EmitDpsEnvelopeXml envelope)
@@ -330,6 +353,46 @@ internal sealed class EmitDpsXmlBuilder
         }
 
         return NormalizeDigits(value, minLength, maxLength, parameterName);
+    }
+
+    private static string? FormatOptionalAmount(decimal? value, string parameterName)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return FormatNonNegativeDecimal(value.Value, parameterName, maximumExclusive: 1_000_000_000_000_000m);
+    }
+
+    private static string? FormatOptionalIssRate(decimal? value, string parameterName)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return FormatNonNegativeDecimal(value.Value, parameterName, maximumExclusive: 10m);
+    }
+
+    private static string FormatNonNegativeDecimal(
+        decimal value,
+        string parameterName,
+        decimal maximumExclusive)
+    {
+        if (value < 0)
+        {
+            throw new NFSeSerializationException($"{parameterName} must be greater than or equal to zero.");
+        }
+
+        if (value >= maximumExclusive)
+        {
+            throw new NFSeSerializationException($"{parameterName} exceeds the maximum value accepted by the DPS schema.");
+        }
+
+        return decimal
+            .Round(value, 2, MidpointRounding.AwayFromZero)
+            .ToString("0.00", CultureInfo.InvariantCulture);
     }
 
     private static string EnsureNotWhiteSpace(string? value, string parameterName)

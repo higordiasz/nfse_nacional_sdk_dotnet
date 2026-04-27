@@ -59,13 +59,34 @@ public sealed class NFSeXmlSerializerEmitDpsTests
     }
 
     [Fact]
+    public void SerializeSignedDps_ShouldMapOptionalValueAndTaxationFields()
+    {
+        var serializer = new NFSeXmlSerializer();
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+
+        var result = serializer.SerializeSignedDps(
+            NFSeTransmissionFixtures.CreateRequest(includeOptionalValues: true),
+            new EmitDpsSerializationContext
+            {
+                Environment = NFSeEnvironment.ProductionRestricted,
+                SigningCertificate = certificate,
+                ApplicationVersion = "NFSeNacionalSdk_Tests"
+            });
+
+        Assert.Contains("<vReceb>1450.75</vReceb>", result.XmlContent, StringComparison.Ordinal);
+        Assert.Contains("<vDescIncond>100.00</vDescIncond>", result.XmlContent, StringComparison.Ordinal);
+        Assert.Contains("<vDescCond>50.25</vDescCond>", result.XmlContent, StringComparison.Ordinal);
+        Assert.Contains("<pAliq>5.00</pAliq>", result.XmlContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SerializeSignedDps_ShouldGenerateXmlValidAgainstOfficialDpsSchema()
     {
         var serializer = new NFSeXmlSerializer();
         using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
 
         var result = serializer.SerializeSignedDps(
-            NFSeTransmissionFixtures.CreateRequest(),
+            NFSeTransmissionFixtures.CreateRequest(includeOptionalValues: true),
             new EmitDpsSerializationContext
             {
                 Environment = NFSeEnvironment.ProductionRestricted,
