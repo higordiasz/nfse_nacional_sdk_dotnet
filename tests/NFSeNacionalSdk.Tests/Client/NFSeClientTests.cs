@@ -299,6 +299,83 @@ public sealed class NFSeClientTests
         });
     }
 
+    [Fact]
+    public async Task GetMunicipalServiceParametersAsync_ShouldCallParametrizationApiAndReturnAvailableResult()
+    {
+        const string municipalityCode = "3204005";
+        const string serviceCode = "010101";
+        var transport = new CapturingTransport(
+            HttpStatusCode.OK,
+            """
+            {
+              "codigoMunicipio": "3204005",
+              "codigoServico": "010101",
+              "descricao": "Analise e desenvolvimento de sistemas"
+            }
+            """);
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetMunicipalServiceParametersAsync(new GetMunicipalServiceParametersRequest
+        {
+            MunicipalityCode = municipalityCode,
+            ServiceCode = serviceCode
+        });
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        Assert.Equal(municipalityCode, result.MunicipalityCode);
+        Assert.Equal(serviceCode, result.ServiceCode);
+        Assert.NotNull(result.JsonContent);
+        Assert.Empty(result.Messages);
+
+        Assert.NotNull(transport.LastRequest);
+        Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
+        Assert.Equal(
+            "https://adn.producaorestrita.nfse.gov.br/parametrizacao/parametros_municipais/3204005/010101",
+            transport.LastRequest.Path);
+        Assert.Equal("application/json", transport.LastRequest.Accept);
+    }
+
+    [Fact]
+    public async Task GetMunicipalServiceParametersAsync_ShouldReturnUnavailableBusinessErrorResult()
+    {
+        const string municipalityCode = "3204005";
+        const string serviceCode = "010101";
+        using var client = new NFSeClient(
+            new CapturingTransport(
+                HttpStatusCode.NotFound,
+                """
+                {
+                  "erro": {
+                    "codigo": "E1001",
+                    "descricao": "Parametros municipais do servico nao encontrados."
+                  }
+                }
+                """),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetMunicipalServiceParametersAsync(new GetMunicipalServiceParametersRequest
+        {
+            MunicipalityCode = municipalityCode,
+            ServiceCode = serviceCode
+        });
+
+        Assert.False(result.IsAvailable);
+        Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
+        Assert.Equal(municipalityCode, result.MunicipalityCode);
+        Assert.Equal(serviceCode, result.ServiceCode);
+        Assert.NotNull(result.JsonContent);
+        Assert.Collection(result.Messages, message =>
+        {
+            Assert.Equal("E1001", message.Code);
+            Assert.Equal("Parametros municipais do servico nao encontrados.", message.Description);
+        });
+    }
+
     private static INFSeSerializer CreateSerializer() => new NFSeXmlSerializer();
 
     private static string DecodePostedDpsXml(TransportRequest? request)
