@@ -321,7 +321,7 @@ public sealed class NFSeClientTests
         var result = await client.GetMunicipalServiceParametersAsync(new GetMunicipalServiceParametersRequest
         {
             MunicipalityCode = municipalityCode,
-            ServiceCode = serviceCode
+            ServiceCode = "01.01.01"
         });
 
         Assert.True(result.IsAvailable);

@@ -265,6 +265,7 @@ static async Task ExecuteMunicipalConventionLookupAsync(SampleConfiguration conf
         Console.WriteLine($"Convenio disponivel: {result.IsAvailable}");
         WriteMessages(result.Messages);
         WriteJsonIfPresent(result.JsonContent);
+        WriteEmptyParametrizationPayloadHint(result.IsAvailable, result.JsonContent);
     }
     catch (NFSeTransportException exception)
     {
@@ -295,6 +296,13 @@ static async Task ExecuteMunicipalServiceParametersLookupAsync(SampleConfigurati
         "Codigo nacional do servico (cTribNac)",
         configuration.ServiceCode,
         allowEmpty: false);
+    var request = new GetMunicipalServiceParametersRequest
+    {
+        MunicipalityCode = configuration.MunicipalityCode,
+        ServiceCode = configuration.ServiceCode
+    };
+    configuration.MunicipalityCode = request.MunicipalityCode;
+    configuration.ServiceCode = request.ServiceCode;
 
     using var client = CreateClient(configuration);
     if (client is null)
@@ -303,16 +311,8 @@ static async Task ExecuteMunicipalServiceParametersLookupAsync(SampleConfigurati
     }
 
     var endpoints = NFSeEndpointsOptions.For(configuration.Environment);
-    var resolvedPath = endpoints.MunicipalParametersByServiceCodePath
-        .Replace(
-            "{codigoMunicipio}",
-            Uri.EscapeDataString(configuration.MunicipalityCode),
-            StringComparison.Ordinal)
-        .Replace(
-            "{codigoServico}",
-            Uri.EscapeDataString(configuration.ServiceCode),
-            StringComparison.Ordinal);
-    var resolvedUrl = new Uri(new Uri(endpoints.ParametrizationBaseUrl, UriKind.Absolute), resolvedPath.TrimStart('/'));
+    var resolvedPath = BuildMunicipalServiceParametersPath(endpoints, request.MunicipalityCode, request.ServiceCode);
+    var resolvedUrl = BuildParametrizationUrl(endpoints, resolvedPath);
 
     Console.WriteLine();
     Console.WriteLine("Executando consulta de parametros municipais por servico...");
@@ -324,11 +324,7 @@ static async Task ExecuteMunicipalServiceParametersLookupAsync(SampleConfigurati
 
     try
     {
-        var result = await client.Instance.GetMunicipalServiceParametersAsync(new GetMunicipalServiceParametersRequest
-        {
-            MunicipalityCode = configuration.MunicipalityCode,
-            ServiceCode = configuration.ServiceCode
-        });
+        var result = await client.Instance.GetMunicipalServiceParametersAsync(request);
 
         Console.WriteLine();
         Console.WriteLine("Resultado da consulta de parametros municipais");
@@ -338,6 +334,7 @@ static async Task ExecuteMunicipalServiceParametersLookupAsync(SampleConfigurati
         Console.WriteLine($"Parametros disponiveis: {result.IsAvailable}");
         WriteMessages(result.Messages);
         WriteJsonIfPresent(result.JsonContent);
+        WriteEmptyParametrizationPayloadHint(result.IsAvailable, result.JsonContent);
     }
     catch (NFSeTransportException exception)
     {
@@ -390,6 +387,7 @@ static async Task<bool> ConfirmMunicipalConventionAsync(
         Console.WriteLine($"Municipio: {result.MunicipalityCode}");
         Console.WriteLine($"Convenio disponivel: {result.IsAvailable}");
         WriteMessages(result.Messages);
+        WriteEmptyParametrizationPayloadHint(result.IsAvailable, result.JsonContent);
 
         if (result.IsAvailable)
         {
@@ -424,17 +422,14 @@ static async Task<bool> ConfirmMunicipalServiceParametersAsync(
     string municipalityCode,
     string serviceCode)
 {
+    var request = new GetMunicipalServiceParametersRequest
+    {
+        MunicipalityCode = municipalityCode,
+        ServiceCode = serviceCode
+    };
     var endpoints = NFSeEndpointsOptions.For(environment);
-    var resolvedPath = endpoints.MunicipalParametersByServiceCodePath
-        .Replace(
-            "{codigoMunicipio}",
-            Uri.EscapeDataString(municipalityCode),
-            StringComparison.Ordinal)
-        .Replace(
-            "{codigoServico}",
-            Uri.EscapeDataString(serviceCode),
-            StringComparison.Ordinal);
-    var resolvedUrl = new Uri(new Uri(endpoints.ParametrizationBaseUrl, UriKind.Absolute), resolvedPath.TrimStart('/'));
+    var resolvedPath = BuildMunicipalServiceParametersPath(endpoints, request.MunicipalityCode, request.ServiceCode);
+    var resolvedUrl = BuildParametrizationUrl(endpoints, resolvedPath);
 
     Console.WriteLine();
     Console.WriteLine("Validando parametros municipais do servico antes da emissao...");
@@ -445,11 +440,7 @@ static async Task<bool> ConfirmMunicipalServiceParametersAsync(
 
     try
     {
-        var result = await client.GetMunicipalServiceParametersAsync(new GetMunicipalServiceParametersRequest
-        {
-            MunicipalityCode = municipalityCode,
-            ServiceCode = serviceCode
-        });
+        var result = await client.GetMunicipalServiceParametersAsync(request);
 
         Console.WriteLine();
         Console.WriteLine("Resultado da validacao de parametros municipais");
@@ -458,6 +449,7 @@ static async Task<bool> ConfirmMunicipalServiceParametersAsync(
         Console.WriteLine($"Servico: {result.ServiceCode}");
         Console.WriteLine($"Parametros disponiveis: {result.IsAvailable}");
         WriteMessages(result.Messages);
+        WriteEmptyParametrizationPayloadHint(result.IsAvailable, result.JsonContent);
 
         if (result.IsAvailable)
         {
@@ -855,6 +847,27 @@ static bool PromptYesNo(string label)
     return string.Equals(Console.ReadLine()?.Trim(), "s", StringComparison.OrdinalIgnoreCase);
 }
 
+static string BuildMunicipalServiceParametersPath(
+    NFSeEndpointsOptions endpoints,
+    string municipalityCode,
+    string serviceCode)
+{
+    return endpoints.MunicipalParametersByServiceCodePath
+        .Replace(
+            "{codigoMunicipio}",
+            Uri.EscapeDataString(municipalityCode),
+            StringComparison.Ordinal)
+        .Replace(
+            "{codigoServico}",
+            Uri.EscapeDataString(serviceCode),
+            StringComparison.Ordinal);
+}
+
+static Uri BuildParametrizationUrl(NFSeEndpointsOptions endpoints, string path)
+{
+    return new Uri(new Uri(endpoints.ParametrizationBaseUrl, UriKind.Absolute), path.TrimStart('/'));
+}
+
 static TEnum PromptEnum<TEnum>(string label, TEnum defaultValue)
     where TEnum : struct, Enum
 {
@@ -1087,6 +1100,17 @@ static void WriteJsonIfPresent(string? json)
     Console.WriteLine();
     Console.WriteLine("JSON");
     Console.WriteLine(json);
+}
+
+static void WriteEmptyParametrizationPayloadHint(bool isAvailable, string? jsonContent)
+{
+    if (isAvailable || !string.IsNullOrWhiteSpace(jsonContent))
+    {
+        return;
+    }
+
+    Console.WriteLine();
+    Console.WriteLine("Diagnostico: a API nao retornou JSON para detalhar a negativa. Em 404, trate como parametrizacao nao encontrada para esse ambiente, municipio ou servico.");
 }
 
 static X509Certificate2 LoadCertificate(string certificatePath, string? certificatePassword)
