@@ -7,6 +7,9 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>NFSeNacionalSdk.Transport.Http</PackageId>
+    <Title>NFSe Nacional SDK HTTP Transport</Title>
+    <Description>HTTP transport implementation for NFSe Nacional SDK integrations with certificate-based client authentication.</Description>
   </PropertyGroup>
 
 </Project>

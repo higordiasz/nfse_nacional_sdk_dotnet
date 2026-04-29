@@ -11,6 +11,9 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>NFSeNacionalSdk</PackageId>
+    <Title>NFSe Nacional SDK for .NET</Title>
+    <Description>.NET SDK for Brazil's NFSe Nacional, including NFS-e lookup, synchronous DPS emission, DPS lookup, municipal parametrization lookups, XML signature, and structured document parsing.</Description>
   </PropertyGroup>
 
 </Project>

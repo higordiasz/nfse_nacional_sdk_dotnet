@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>NFSeNacionalSdk.Core</PackageId>
+    <Title>NFSe Nacional SDK Core</Title>
+    <Description>Core enums, options, constants, and exceptions for NFSe Nacional SDK integrations.</Description>
   </PropertyGroup>
 
 </Project>

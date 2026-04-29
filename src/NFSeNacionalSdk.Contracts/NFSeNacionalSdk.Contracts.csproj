@@ -6,6 +6,9 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>NFSeNacionalSdk.Contracts</PackageId>
+    <Title>NFSe Nacional SDK Contracts</Title>
+    <Description>Public request, response, document, serialization, transport, and client contracts for NFSe Nacional SDK integrations.</Description>
   </PropertyGroup>
 
 </Project>
