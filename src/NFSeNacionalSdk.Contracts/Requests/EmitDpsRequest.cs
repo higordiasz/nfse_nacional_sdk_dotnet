@@ -107,5 +107,7 @@ public sealed class EmitDpsTaxation
 
     public decimal? IssRate { get; init; }
 
-    public NFSeTotalTaxIndicator TotalTaxIndicator { get; init; } = NFSeTotalTaxIndicator.NotInformed;
+    public NFSeTotalTaxIndicator? TotalTaxIndicator { get; init; } = NFSeTotalTaxIndicator.NotInformed;
+
+    public decimal? SimplesNationalTotalTaxRate { get; init; }
 }

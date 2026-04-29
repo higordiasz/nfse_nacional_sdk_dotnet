@@ -60,7 +60,7 @@ internal sealed class EmitDpsXmlBuilder
                 Provider = BuildProvider(provider, providerTaxId),
                 Recipient = request.Recipient is null ? null : BuildRecipient(request.Recipient),
                 Service = BuildService(service, municipalityCode),
-                Values = BuildValues(service, taxation)
+                Values = BuildValues(service, provider, taxation)
             }
         };
 
@@ -159,9 +159,13 @@ internal sealed class EmitDpsXmlBuilder
         };
     }
 
-    private static EmitDpsValuesXml BuildValues(EmitDpsService service, EmitDpsTaxation taxation)
+    private static EmitDpsValuesXml BuildValues(
+        EmitDpsService service,
+        EmitDpsProvider provider,
+        EmitDpsTaxation taxation)
     {
         ArgumentNullException.ThrowIfNull(service);
+        ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(taxation);
 
         if (service.Amount <= 0)
@@ -190,11 +194,52 @@ internal sealed class EmitDpsXmlBuilder
                     IssWithholdingType = ((int)taxation.IssWithholdingType).ToString(CultureInfo.InvariantCulture),
                     IssRate = FormatOptionalIssRate(taxation.IssRate, nameof(taxation.IssRate))
                 },
-                TotalTax = new EmitDpsTotalTaxXml
-                {
-                    Indicator = ((int)taxation.TotalTaxIndicator).ToString(CultureInfo.InvariantCulture)
-                }
+                TotalTax = BuildTotalTax(provider, taxation)
             }
+        };
+    }
+
+    private static EmitDpsTotalTaxXml BuildTotalTax(EmitDpsProvider provider, EmitDpsTaxation taxation)
+    {
+        if (provider.SimplesNationalOption == NFSeSimplesNationalOption.MicroOrSmallBusiness)
+        {
+            if (taxation.TotalTaxIndicator is not null)
+            {
+                throw new NFSeSerializationException(
+                    "taxation.TotalTaxIndicator must be omitted for provider.SimplesNationalOption MicroOrSmallBusiness (3). " +
+                    "Set taxation.totalTaxIndicator to null and inform taxation.simplesNationalTotalTaxRate.");
+            }
+
+            if (taxation.SimplesNationalTotalTaxRate is null)
+            {
+                throw new NFSeSerializationException(
+                    "taxation.SimplesNationalTotalTaxRate must be informed for provider.SimplesNationalOption MicroOrSmallBusiness (3).");
+            }
+
+            return new EmitDpsTotalTaxXml
+            {
+                SimplesNationalRate = FormatNonNegativeDecimal(
+                    taxation.SimplesNationalTotalTaxRate.Value,
+                    nameof(taxation.SimplesNationalTotalTaxRate),
+                    maximumExclusive: 100m)
+            };
+        }
+
+        if (taxation.SimplesNationalTotalTaxRate is not null)
+        {
+            throw new NFSeSerializationException(
+                "taxation.SimplesNationalTotalTaxRate can only be informed for provider.SimplesNationalOption MicroOrSmallBusiness (3).");
+        }
+
+        if (taxation.TotalTaxIndicator is null)
+        {
+            throw new NFSeSerializationException(
+                "taxation.TotalTaxIndicator must be informed when provider.SimplesNationalOption is not MicroOrSmallBusiness (3).");
+        }
+
+        return new EmitDpsTotalTaxXml
+        {
+            Indicator = ((int)taxation.TotalTaxIndicator.Value).ToString(CultureInfo.InvariantCulture)
         };
     }
 

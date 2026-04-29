@@ -110,7 +110,12 @@ public sealed class NFSeXmlSerializerEmitDpsTests
 
         var exception = Assert.Throws<NFSeSerializationException>(() =>
             serializer.SerializeSignedDps(
-                NFSeTransmissionFixtures.CreateRequest(issRate: 0.00m),
+                NFSeTransmissionFixtures.CreateRequest(
+                    simplesNationalOption: NFSeSimplesNationalOption.MicroOrSmallBusiness,
+                    simplifiedNationalTaxRegime: NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational,
+                    issRate: 0.00m,
+                    totalTaxIndicator: null,
+                    simplesNationalTotalTaxRate: 2.00m),
                 new EmitDpsSerializationContext
                 {
                     Environment = NFSeEnvironment.ProductionRestricted,
@@ -120,6 +125,51 @@ public sealed class NFSeXmlSerializerEmitDpsTests
 
         Assert.Contains("taxation.IssRate must be omitted", exception.Message, StringComparison.Ordinal);
         Assert.Contains("taxation.issRate to null", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SerializeSignedDps_ShouldMapSimplesNationalTotalTaxRate()
+    {
+        var serializer = new NFSeXmlSerializer();
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+
+        var result = serializer.SerializeSignedDps(
+            NFSeTransmissionFixtures.CreateRequest(
+                simplesNationalOption: NFSeSimplesNationalOption.MicroOrSmallBusiness,
+                simplifiedNationalTaxRegime: NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational,
+                totalTaxIndicator: null,
+                simplesNationalTotalTaxRate: 2.00m),
+            new EmitDpsSerializationContext
+            {
+                Environment = NFSeEnvironment.ProductionRestricted,
+                SigningCertificate = certificate,
+                ApplicationVersion = "NFSeNacionalSdk_Tests"
+            });
+
+        Assert.Contains("<pTotTribSN>2.00</pTotTribSN>", result.XmlContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("<indTotTrib>", result.XmlContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SerializeSignedDps_ShouldRejectTotalTaxIndicatorForMicroOrSmallBusiness()
+    {
+        var serializer = new NFSeXmlSerializer();
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+
+        var exception = Assert.Throws<NFSeSerializationException>(() =>
+            serializer.SerializeSignedDps(
+                NFSeTransmissionFixtures.CreateRequest(
+                    simplesNationalOption: NFSeSimplesNationalOption.MicroOrSmallBusiness,
+                    simplifiedNationalTaxRegime: NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational),
+                new EmitDpsSerializationContext
+                {
+                    Environment = NFSeEnvironment.ProductionRestricted,
+                    SigningCertificate = certificate,
+                    ApplicationVersion = "NFSeNacionalSdk_Tests"
+                }));
+
+        Assert.Contains("taxation.TotalTaxIndicator must be omitted", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("taxation.simplesNationalTotalTaxRate", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

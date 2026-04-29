@@ -40,6 +40,7 @@
         "issTaxationType": 1,
         "issWithholdingType": 1,
         "issRate": 3.0,
-        "totalTaxIndicator": 0
+        "totalTaxIndicator": 0,
+        "simplesNationalTotalTaxRate": null
     }
 }

@@ -232,5 +232,8 @@ public sealed class EmitDpsMunicipalTaxationXml
 public sealed class EmitDpsTotalTaxXml
 {
     [XmlElement("indTotTrib", Order = 0)]
-    public string Indicator { get; set; } = string.Empty;
+    public string? Indicator { get; set; }
+
+    [XmlElement("pTotTribSN", Order = 1)]
+    public string? SimplesNationalRate { get; set; }
 }

@@ -740,7 +740,12 @@ static EmitDpsRequest PromptEmissionRequest()
             "Retencao do ISSQN (1 = Nao retido, 2 = Retido pelo tomador, 3 = Retido pelo intermediario)",
             NFSeIssWithholdingType.NotWithheld),
         IssRate = PromptOptionalDecimal("Aliquota do ISSQN em percentual (opcional)"),
-        TotalTaxIndicator = NFSeTotalTaxIndicator.NotInformed
+        TotalTaxIndicator = provider.SimplesNationalOption == NFSeSimplesNationalOption.MicroOrSmallBusiness
+            ? null
+            : NFSeTotalTaxIndicator.NotInformed,
+        SimplesNationalTotalTaxRate = provider.SimplesNationalOption == NFSeSimplesNationalOption.MicroOrSmallBusiness
+            ? PromptDecimal("Percentual total aproximado da aliquota do Simples Nacional (pTotTribSN)", 0.00m)
+            : null
     };
 
     return new EmitDpsRequest
@@ -1039,7 +1044,7 @@ static string? ValidateEmissionRequest(EmitDpsRequest request)
     var taxationEnumValidation =
         ValidateEnumValue(request.Taxation.IssTaxationType, "taxation.issTaxationType") ??
         ValidateEnumValue(request.Taxation.IssWithholdingType, "taxation.issWithholdingType") ??
-        ValidateEnumValue(request.Taxation.TotalTaxIndicator, "taxation.totalTaxIndicator");
+        ValidateOptionalEnumValue(request.Taxation.TotalTaxIndicator, "taxation.totalTaxIndicator");
     if (taxationEnumValidation is not null)
     {
         return taxationEnumValidation;
@@ -1096,6 +1101,23 @@ static string? ValidateEmissionBusinessRules(EmitDpsRequest request)
             "A SEFIN nao permite enviar pAliq nesse caso.";
     }
 
+    if (request.Provider.SimplesNationalOption == NFSeSimplesNationalOption.MicroOrSmallBusiness)
+    {
+        if (request.Taxation.TotalTaxIndicator is not null)
+        {
+            return "Informe taxation.totalTaxIndicator como null para ME/EPP e use taxation.simplesNationalTotalTaxRate.";
+        }
+
+        if (request.Taxation.SimplesNationalTotalTaxRate is null)
+        {
+            return "Informe taxation.simplesNationalTotalTaxRate para ME/EPP. Esse campo gera pTotTribSN.";
+        }
+    }
+    else if (request.Taxation.TotalTaxIndicator is null)
+    {
+        return "Informe taxation.totalTaxIndicator quando provider.simplesNationalOption for diferente de 3.";
+    }
+
     return null;
 }
 
@@ -1144,7 +1166,8 @@ static string CreateDefaultEmissionRequestTemplateJson()
             "issTaxationType": 1,
             "issWithholdingType": 1,
             "issRate": 3.00,
-            "totalTaxIndicator": 0
+            "totalTaxIndicator": 0,
+            "simplesNationalTotalTaxRate": null
           }
         }
         """;

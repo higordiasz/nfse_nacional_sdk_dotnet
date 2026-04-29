@@ -16,10 +16,12 @@ internal static class NFSeTransmissionFixtures
     public static EmitDpsRequest CreateRequest(
         bool includeOptionalValues = false,
         decimal? amount = null,
-        NFSeSimplifiedNationalTaxRegime? simplifiedNationalTaxRegime =
-            NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational,
+        NFSeSimplesNationalOption simplesNationalOption = NFSeSimplesNationalOption.NotOptedIn,
+        NFSeSimplifiedNationalTaxRegime? simplifiedNationalTaxRegime = null,
         NFSeIssWithholdingType issWithholdingType = NFSeIssWithholdingType.NotWithheld,
-        decimal? issRate = null)
+        decimal? issRate = null,
+        NFSeTotalTaxIndicator? totalTaxIndicator = NFSeTotalTaxIndicator.NotInformed,
+        decimal? simplesNationalTotalTaxRate = null)
     {
         return new EmitDpsRequest
         {
@@ -35,7 +37,7 @@ internal static class NFSeTransmissionFixtures
                 Name = "Prestador Exemplo LTDA",
                 Phone = "(11) 99999-0000",
                 Email = "contato@prestador.example",
-                SimplesNationalOption = NFSeSimplesNationalOption.MicroOrSmallBusiness,
+                SimplesNationalOption = simplesNationalOption,
                 SimplifiedNationalTaxRegime = simplifiedNationalTaxRegime,
                 SpecialTaxRegime = NFSeSpecialTaxRegime.None
             },
@@ -70,7 +72,8 @@ internal static class NFSeTransmissionFixtures
                 IssTaxationType = NFSeIssTaxationType.TaxableOperation,
                 IssWithholdingType = issWithholdingType,
                 IssRate = issRate ?? (includeOptionalValues ? 5.00m : null),
-                TotalTaxIndicator = NFSeTotalTaxIndicator.NotInformed
+                TotalTaxIndicator = totalTaxIndicator,
+                SimplesNationalTotalTaxRate = simplesNationalTotalTaxRate
             }
         };
     }
