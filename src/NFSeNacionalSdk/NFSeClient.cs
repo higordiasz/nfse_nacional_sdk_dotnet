@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
@@ -328,6 +329,11 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             messages = [..messages, CreateMessage(apiEnvelope.Error)];
         }
 
+        if (!response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(apiEnvelope.Message))
+        {
+            messages = [..messages, new NFSeMessage { Description = apiEnvelope.Message }];
+        }
+
         return new GetMunicipalConventionResult
         {
             MunicipalityCode = request.MunicipalityCode,
@@ -348,7 +354,10 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             new TransportRequest
             {
                 Method = HttpMethod.Get,
-                Path = BuildMunicipalServiceParametersPath(request.MunicipalityCode, request.ServiceCode),
+                Path = BuildMunicipalServiceParametersPath(
+                    request.MunicipalityCode,
+                    request.ServiceCode,
+                    request.CompetenceDate),
                 Accept = MediaTypes.ApplicationJson
             },
             cancellationToken).ConfigureAwait(false);
@@ -359,6 +368,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             {
                 MunicipalityCode = request.MunicipalityCode,
                 ServiceCode = request.ServiceCode,
+                CompetenceDate = request.CompetenceDate,
                 IsAvailable = response.IsSuccessStatusCode,
                 JsonContent = null,
                 Messages = response.IsSuccessStatusCode
@@ -382,10 +392,16 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             messages = [..messages, CreateMessage(apiEnvelope.Error)];
         }
 
+        if (!response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(apiEnvelope.Message))
+        {
+            messages = [..messages, new NFSeMessage { Description = apiEnvelope.Message }];
+        }
+
         return new GetMunicipalServiceParametersResult
         {
             MunicipalityCode = request.MunicipalityCode,
             ServiceCode = request.ServiceCode,
+            CompetenceDate = request.CompetenceDate,
             IsAvailable = response.IsSuccessStatusCode && messages.Count == 0,
             JsonContent = response.Content,
             Messages = messages,
@@ -587,7 +603,10 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             path.TrimStart('/')).ToString();
     }
 
-    private string BuildMunicipalServiceParametersPath(string municipalityCode, string serviceCode)
+    private string BuildMunicipalServiceParametersPath(
+        string municipalityCode,
+        string serviceCode,
+        DateOnly competenceDate)
     {
         var path = _endpoints.MunicipalParametersByServiceCodePath
             .Replace(
@@ -597,6 +616,10 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             .Replace(
                 "{codigoServico}",
                 Uri.EscapeDataString(serviceCode),
+                StringComparison.Ordinal)
+            .Replace(
+                "{competencia}",
+                Uri.EscapeDataString(competenceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
                 StringComparison.Ordinal);
 
         return new Uri(

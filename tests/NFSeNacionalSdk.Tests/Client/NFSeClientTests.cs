@@ -235,8 +235,11 @@ public sealed class NFSeClientTests
             HttpStatusCode.OK,
             """
             {
-              "codigoMunicipio": "3204005",
-              "conveniado": true
+              "parametrosConvenio": {
+                "aderenteAmbienteNacional": 1,
+                "aderenteEmissorNacional": 0
+              },
+              "mensagem": "Parametros do convenio recuperados com sucesso."
             }
             """);
         using var client = new NFSeClient(
@@ -258,7 +261,7 @@ public sealed class NFSeClientTests
         Assert.NotNull(transport.LastRequest);
         Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
         Assert.Equal(
-            "https://adn.producaorestrita.nfse.gov.br/parametrizacao/parametros_municipais/3204005/convenio",
+            "https://adn.producaorestrita.nfse.gov.br/parametrizacao/3204005/convenio",
             transport.LastRequest.Path);
         Assert.Equal("application/json", transport.LastRequest.Accept);
     }
@@ -272,10 +275,7 @@ public sealed class NFSeClientTests
                 HttpStatusCode.NotFound,
                 """
                 {
-                  "erro": {
-                    "codigo": "E0037",
-                    "descricao": "O codigo do municipio emissor informado na DPS e inexistente no cadastro de convenio municipal do sistema nacional."
-                  }
+                  "mensagem": "Parametros do convenio nao encontrados."
                 }
                 """),
             CreateSerializer(),
@@ -292,10 +292,8 @@ public sealed class NFSeClientTests
         Assert.NotNull(result.JsonContent);
         Assert.Collection(result.Messages, message =>
         {
-            Assert.Equal("E0037", message.Code);
-            Assert.Equal(
-                "O codigo do municipio emissor informado na DPS e inexistente no cadastro de convenio municipal do sistema nacional.",
-                message.Description);
+            Assert.Null(message.Code);
+            Assert.Equal("Parametros do convenio nao encontrados.", message.Description);
         });
     }
 
@@ -303,14 +301,23 @@ public sealed class NFSeClientTests
     public async Task GetMunicipalServiceParametersAsync_ShouldCallParametrizationApiAndReturnAvailableResult()
     {
         const string municipalityCode = "3204005";
-        const string serviceCode = "010101";
+        const string serviceCode = "01.01.01.000";
+        var competenceDate = new DateOnly(2026, 4, 29);
         var transport = new CapturingTransport(
             HttpStatusCode.OK,
             """
             {
-              "codigoMunicipio": "3204005",
-              "codigoServico": "010101",
-              "descricao": "Analise e desenvolvimento de sistemas"
+              "aliquotas": {
+                "01.01.01.000": [
+                  {
+                    "Incidencia": "SIM",
+                    "Aliq": 3.00,
+                    "DtIni": "2025-11-20T00:00:00",
+                    "DtFim": null
+                  }
+                ]
+              },
+              "mensagem": "Aliquotas recuperadas com sucesso."
             }
             """);
         using var client = new NFSeClient(
@@ -321,20 +328,22 @@ public sealed class NFSeClientTests
         var result = await client.GetMunicipalServiceParametersAsync(new GetMunicipalServiceParametersRequest
         {
             MunicipalityCode = municipalityCode,
-            ServiceCode = "01.01.01"
+            ServiceCode = "010101",
+            CompetenceDate = competenceDate
         });
 
         Assert.True(result.IsAvailable);
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
         Assert.Equal(municipalityCode, result.MunicipalityCode);
         Assert.Equal(serviceCode, result.ServiceCode);
+        Assert.Equal(competenceDate, result.CompetenceDate);
         Assert.NotNull(result.JsonContent);
         Assert.Empty(result.Messages);
 
         Assert.NotNull(transport.LastRequest);
         Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
         Assert.Equal(
-            "https://adn.producaorestrita.nfse.gov.br/parametrizacao/parametros_municipais/3204005/010101",
+            "https://adn.producaorestrita.nfse.gov.br/parametrizacao/3204005/01.01.01.000/2026-04-29/aliquota",
             transport.LastRequest.Path);
         Assert.Equal("application/json", transport.LastRequest.Accept);
     }
@@ -343,16 +352,15 @@ public sealed class NFSeClientTests
     public async Task GetMunicipalServiceParametersAsync_ShouldReturnUnavailableBusinessErrorResult()
     {
         const string municipalityCode = "3204005";
-        const string serviceCode = "010101";
+        const string serviceCode = "01.01.01.000";
+        var competenceDate = new DateOnly(2026, 4, 29);
         using var client = new NFSeClient(
             new CapturingTransport(
                 HttpStatusCode.NotFound,
                 """
                 {
-                  "erro": {
-                    "codigo": "E1001",
-                    "descricao": "Parametros municipais do servico nao encontrados."
-                  }
+                  "aliquotas": null,
+                  "mensagem": "Aliquotas nao encontradas."
                 }
                 """),
             CreateSerializer(),
@@ -361,18 +369,20 @@ public sealed class NFSeClientTests
         var result = await client.GetMunicipalServiceParametersAsync(new GetMunicipalServiceParametersRequest
         {
             MunicipalityCode = municipalityCode,
-            ServiceCode = serviceCode
+            ServiceCode = serviceCode,
+            CompetenceDate = competenceDate
         });
 
         Assert.False(result.IsAvailable);
         Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
         Assert.Equal(municipalityCode, result.MunicipalityCode);
         Assert.Equal(serviceCode, result.ServiceCode);
+        Assert.Equal(competenceDate, result.CompetenceDate);
         Assert.NotNull(result.JsonContent);
         Assert.Collection(result.Messages, message =>
         {
-            Assert.Equal("E1001", message.Code);
-            Assert.Equal("Parametros municipais do servico nao encontrados.", message.Description);
+            Assert.Null(message.Code);
+            Assert.Equal("Aliquotas nao encontradas.", message.Description);
         });
     }
 

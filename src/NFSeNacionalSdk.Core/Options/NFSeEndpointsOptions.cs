@@ -10,8 +10,9 @@ public sealed class NFSeEndpointsOptions
 
     public string ParametrizationBaseUrl { get; init; } = string.Empty;
 
-    public string MunicipalParametersByConventionPath => "/parametros_municipais/{codigoMunicipio}/convenio";
-    public string MunicipalParametersByServiceCodePath => "/parametros_municipais/{codigoMunicipio}/{codigoServico}";
+    public string MunicipalParametersByConventionPath => "/{codigoMunicipio}/convenio";
+    public string MunicipalParametersByServiceCodePath => "/{codigoMunicipio}/{codigoServico}/{competencia}/aliquota";
+    public string MunicipalServiceTaxRateHistoryPath => "/{codigoMunicipio}/{codigoServico}/historicoaliquotas";
     public string NfsePath => "/nfse";
     public string NfseByAccessKeyPath => "/nfse/{chaveAcesso}";
     public string DpsByIdPath => "/dps/{id}";

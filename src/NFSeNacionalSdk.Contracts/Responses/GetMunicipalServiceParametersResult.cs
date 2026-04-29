@@ -8,6 +8,8 @@ public sealed class GetMunicipalServiceParametersResult
 
     public required string ServiceCode { get; init; }
 
+    public DateOnly CompetenceDate { get; init; }
+
     public bool IsAvailable { get; init; }
 
     public string? JsonContent { get; init; }

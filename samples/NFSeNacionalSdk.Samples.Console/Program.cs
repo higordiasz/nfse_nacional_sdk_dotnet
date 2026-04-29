@@ -161,7 +161,8 @@ static async Task ExecuteEmissionAsync(SampleConfiguration configuration)
         client.Instance,
         configuration.Environment,
         request.MunicipalityCode,
-        request.Service.NationalTaxationCode))
+        request.Service.NationalTaxationCode,
+        request.CompetenceDate))
     {
         return;
     }
@@ -293,13 +294,17 @@ static async Task ExecuteMunicipalServiceParametersLookupAsync(SampleConfigurati
         configuration.MunicipalityCode,
         allowEmpty: false);
     configuration.ServiceCode = PromptForValue(
-        "Codigo nacional do servico (cTribNac)",
+        "Codigo do servico para parametrizacao (ex: 01.01.01.000)",
         configuration.ServiceCode,
         allowEmpty: false);
+    var competenceDate = PromptDateOnly(
+        "Competencia da parametrizacao (yyyy-MM-dd)",
+        DateOnly.FromDateTime(DateTime.Today));
     var request = new GetMunicipalServiceParametersRequest
     {
         MunicipalityCode = configuration.MunicipalityCode,
-        ServiceCode = configuration.ServiceCode
+        ServiceCode = configuration.ServiceCode,
+        CompetenceDate = competenceDate
     };
     configuration.MunicipalityCode = request.MunicipalityCode;
     configuration.ServiceCode = request.ServiceCode;
@@ -311,11 +316,15 @@ static async Task ExecuteMunicipalServiceParametersLookupAsync(SampleConfigurati
     }
 
     var endpoints = NFSeEndpointsOptions.For(configuration.Environment);
-    var resolvedPath = BuildMunicipalServiceParametersPath(endpoints, request.MunicipalityCode, request.ServiceCode);
+    var resolvedPath = BuildMunicipalServiceParametersPath(
+        endpoints,
+        request.MunicipalityCode,
+        request.ServiceCode,
+        request.CompetenceDate);
     var resolvedUrl = BuildParametrizationUrl(endpoints, resolvedPath);
 
     Console.WriteLine();
-    Console.WriteLine("Executando consulta de parametros municipais por servico...");
+    Console.WriteLine("Executando consulta de aliquota municipal por servico...");
     Console.WriteLine($"Ambiente: {GetEnvironmentLabel(configuration.Environment)}");
     Console.WriteLine($"BaseUrl Parametrizacao: {endpoints.ParametrizationBaseUrl}");
     Console.WriteLine($"Path: {resolvedPath}");
@@ -327,28 +336,29 @@ static async Task ExecuteMunicipalServiceParametersLookupAsync(SampleConfigurati
         var result = await client.Instance.GetMunicipalServiceParametersAsync(request);
 
         Console.WriteLine();
-        Console.WriteLine("Resultado da consulta de parametros municipais");
+        Console.WriteLine("Resultado da consulta de aliquota municipal");
         Console.WriteLine($"HTTP: {(int)result.StatusCode} ({result.StatusCode})");
         Console.WriteLine($"Municipio: {result.MunicipalityCode}");
         Console.WriteLine($"Servico: {result.ServiceCode}");
-        Console.WriteLine($"Parametros disponiveis: {result.IsAvailable}");
+        Console.WriteLine($"Competencia: {result.CompetenceDate:yyyy-MM-dd}");
+        Console.WriteLine($"Aliquota disponivel: {result.IsAvailable}");
         WriteMessages(result.Messages);
         WriteJsonIfPresent(result.JsonContent);
         WriteEmptyParametrizationPayloadHint(result.IsAvailable, result.JsonContent);
     }
     catch (NFSeTransportException exception)
     {
-        Console.WriteLine($"Falha de transporte ao consultar os parametros municipais: {exception.Message}");
+        Console.WriteLine($"Falha de transporte ao consultar a aliquota municipal: {exception.Message}");
         WriteInnerException(exception);
     }
     catch (NFSeSerializationException exception)
     {
-        Console.WriteLine($"Falha ao interpretar o retorno da consulta de parametros municipais: {exception.Message}");
+        Console.WriteLine($"Falha ao interpretar o retorno da consulta de aliquota municipal: {exception.Message}");
         WriteInnerException(exception);
     }
     catch (Exception exception)
     {
-        Console.WriteLine($"Falha inesperada durante a consulta de parametros municipais: {exception.Message}");
+        Console.WriteLine($"Falha inesperada durante a consulta de aliquota municipal: {exception.Message}");
         WriteInnerException(exception);
     }
 
@@ -420,19 +430,25 @@ static async Task<bool> ConfirmMunicipalServiceParametersAsync(
     NFSeClient client,
     NFSeEnvironment environment,
     string municipalityCode,
-    string serviceCode)
+    string serviceCode,
+    DateOnly competenceDate)
 {
     var request = new GetMunicipalServiceParametersRequest
     {
         MunicipalityCode = municipalityCode,
-        ServiceCode = serviceCode
+        ServiceCode = serviceCode,
+        CompetenceDate = competenceDate
     };
     var endpoints = NFSeEndpointsOptions.For(environment);
-    var resolvedPath = BuildMunicipalServiceParametersPath(endpoints, request.MunicipalityCode, request.ServiceCode);
+    var resolvedPath = BuildMunicipalServiceParametersPath(
+        endpoints,
+        request.MunicipalityCode,
+        request.ServiceCode,
+        request.CompetenceDate);
     var resolvedUrl = BuildParametrizationUrl(endpoints, resolvedPath);
 
     Console.WriteLine();
-    Console.WriteLine("Validando parametros municipais do servico antes da emissao...");
+    Console.WriteLine("Validando aliquota municipal do servico antes da emissao...");
     Console.WriteLine($"Ambiente: {GetEnvironmentLabel(environment)}");
     Console.WriteLine($"BaseUrl Parametrizacao: {endpoints.ParametrizationBaseUrl}");
     Console.WriteLine($"Path: {resolvedPath}");
@@ -443,11 +459,12 @@ static async Task<bool> ConfirmMunicipalServiceParametersAsync(
         var result = await client.GetMunicipalServiceParametersAsync(request);
 
         Console.WriteLine();
-        Console.WriteLine("Resultado da validacao de parametros municipais");
+        Console.WriteLine("Resultado da validacao de aliquota municipal");
         Console.WriteLine($"HTTP: {(int)result.StatusCode} ({result.StatusCode})");
         Console.WriteLine($"Municipio: {result.MunicipalityCode}");
         Console.WriteLine($"Servico: {result.ServiceCode}");
-        Console.WriteLine($"Parametros disponiveis: {result.IsAvailable}");
+        Console.WriteLine($"Competencia: {result.CompetenceDate:yyyy-MM-dd}");
+        Console.WriteLine($"Aliquota disponivel: {result.IsAvailable}");
         WriteMessages(result.Messages);
         WriteEmptyParametrizationPayloadHint(result.IsAvailable, result.JsonContent);
 
@@ -456,25 +473,25 @@ static async Task<bool> ConfirmMunicipalServiceParametersAsync(
             return true;
         }
 
-        return PromptYesNo("Continuar emissao mesmo sem parametros municipais validados? (s/N)");
+        return PromptYesNo("Continuar emissao mesmo sem aliquota municipal validada? (s/N)");
     }
     catch (NFSeTransportException exception)
     {
-        Console.WriteLine($"Falha de transporte ao validar os parametros municipais: {exception.Message}");
+        Console.WriteLine($"Falha de transporte ao validar a aliquota municipal: {exception.Message}");
         WriteInnerException(exception);
-        return PromptYesNo("Continuar emissao mesmo sem validar os parametros municipais? (s/N)");
+        return PromptYesNo("Continuar emissao mesmo sem validar a aliquota municipal? (s/N)");
     }
     catch (NFSeSerializationException exception)
     {
-        Console.WriteLine($"Falha ao interpretar o retorno da validacao de parametros municipais: {exception.Message}");
+        Console.WriteLine($"Falha ao interpretar o retorno da validacao de aliquota municipal: {exception.Message}");
         WriteInnerException(exception);
-        return PromptYesNo("Continuar emissao mesmo sem validar os parametros municipais? (s/N)");
+        return PromptYesNo("Continuar emissao mesmo sem validar a aliquota municipal? (s/N)");
     }
     catch (Exception exception)
     {
-        Console.WriteLine($"Falha inesperada durante a validacao de parametros municipais: {exception.Message}");
+        Console.WriteLine($"Falha inesperada durante a validacao de aliquota municipal: {exception.Message}");
         WriteInnerException(exception);
-        return PromptYesNo("Continuar emissao mesmo sem validar os parametros municipais? (s/N)");
+        return PromptYesNo("Continuar emissao mesmo sem validar a aliquota municipal? (s/N)");
     }
 }
 
@@ -757,7 +774,7 @@ static void ShowResolvedEndpoints(NFSeEnvironment environment)
     Console.WriteLine($"Emissao sincrona NFS-e: {endpoints.NfsePath}");
     Console.WriteLine($"Consulta DPS por Id: {endpoints.DpsByIdPath}");
     Console.WriteLine($"Convenio municipal: {endpoints.MunicipalParametersByConventionPath}");
-    Console.WriteLine($"Parametros municipais por servico: {endpoints.MunicipalParametersByServiceCodePath}");
+    Console.WriteLine($"Aliquota municipal por servico: {endpoints.MunicipalParametersByServiceCodePath}");
     Console.WriteLine();
 }
 
@@ -803,7 +820,7 @@ static void WriteMenu(SampleConfiguration configuration)
     Console.WriteLine("3. Consultar DPS por id");
     Console.WriteLine("4. Verificar DPS por HEAD");
     Console.WriteLine("5. Consultar convenio municipal");
-    Console.WriteLine("6. Consultar parametros municipais por servico");
+    Console.WriteLine("6. Consultar aliquota municipal por servico");
     Console.WriteLine("7. Alterar ambiente");
     Console.WriteLine("8. Configurar certificado");
     Console.WriteLine("9. Mostrar endpoints resolvidos");
@@ -850,7 +867,8 @@ static bool PromptYesNo(string label)
 static string BuildMunicipalServiceParametersPath(
     NFSeEndpointsOptions endpoints,
     string municipalityCode,
-    string serviceCode)
+    string serviceCode,
+    DateOnly competenceDate)
 {
     return endpoints.MunicipalParametersByServiceCodePath
         .Replace(
@@ -860,6 +878,10 @@ static string BuildMunicipalServiceParametersPath(
         .Replace(
             "{codigoServico}",
             Uri.EscapeDataString(serviceCode),
+            StringComparison.Ordinal)
+        .Replace(
+            "{competencia}",
+            Uri.EscapeDataString(competenceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
             StringComparison.Ordinal);
 }
 
