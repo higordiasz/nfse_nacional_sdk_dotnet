@@ -38,6 +38,10 @@ public sealed class NFSeDocument
 
     public decimal? NetAmount { get; set; }
 
+    public NFSeValues? Values { get; set; }
+
+    public NFSeTaxation? Taxation { get; set; }
+
     public NFSeParty? Issuer { get; set; }
 
     public NFSeParty? Recipient { get; set; }

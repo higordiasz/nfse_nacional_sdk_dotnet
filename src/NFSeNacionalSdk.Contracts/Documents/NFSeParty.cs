@@ -13,6 +13,8 @@ public sealed class NFSeParty
     public string? Email { get; set; }
 
     public NFSeAddress? Address { get; set; }
+
+    public NFSeTaxRegime? TaxRegime { get; set; }
 }
 
 public sealed class NFSeAddress

@@ -52,6 +52,11 @@ internal static class NFSeLookupXmlFixtures
                   <IM>998877</IM>
                   <xNome>Prestador Exemplo LTDA</xNome>
                   <email>contato@prestador.example</email>
+                  <regTrib>
+                    <opSimpNac>3</opSimpNac>
+                    <regApTribSN>1</regApTribSN>
+                    <regEspTrib>0</regEspTrib>
+                  </regTrib>
                 </prest>
                 <toma>
                   <CPF>12345678901</CPF>
@@ -72,8 +77,37 @@ internal static class NFSeLookupXmlFixtures
                 </serv>
                 <valores>
                   <vServPrest>
+                    <vReceb>100.00</vReceb>
                     <vServ>1500.75</vServ>
                   </vServPrest>
+                  <vDescCondIncond>
+                    <vDescIncond>10.00</vDescIncond>
+                    <vDescCond>5.00</vDescCond>
+                  </vDescCondIncond>
+                  <trib>
+                    <tribMun>
+                      <tribISSQN>1</tribISSQN>
+                      <tpRetISSQN>2</tpRetISSQN>
+                      <pAliq>3.00</pAliq>
+                    </tribMun>
+                    <tribFed>
+                      <piscofins>
+                        <CST>01</CST>
+                        <vBCPisCofins>1500.75</vBCPisCofins>
+                        <pAliqPis>0.65</pAliqPis>
+                        <pAliqCofins>3.00</pAliqCofins>
+                        <vPis>9.75</vPis>
+                        <vCofins>45.02</vCofins>
+                        <tpRetPisCofins>1</tpRetPisCofins>
+                      </piscofins>
+                      <vRetCP>1.00</vRetCP>
+                      <vRetIRRF>2.00</vRetIRRF>
+                      <vRetCSLL>3.00</vRetCSLL>
+                    </tribFed>
+                    <totTrib>
+                      <pTotTribSN>2.00</pTotTribSN>
+                    </totTrib>
+                  </trib>
                 </valores>
               </infDPS>
             </DPS>
