@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using NFSeNacionalSdk;
 using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Core.Enums;
@@ -38,27 +40,30 @@ while (true)
             await ExecuteEmissionAsync(configuration);
             break;
         case "3":
-            await ExecuteDpsLookupAsync(configuration);
+            await ExecuteEmissionFromJsonAsync(configuration);
             break;
         case "4":
-            await ExecuteDpsCheckAsync(configuration);
+            await ExecuteDpsLookupAsync(configuration);
             break;
         case "5":
-            await ExecuteMunicipalConventionLookupAsync(configuration);
+            await ExecuteDpsCheckAsync(configuration);
             break;
         case "6":
-            await ExecuteMunicipalServiceParametersLookupAsync(configuration);
+            await ExecuteMunicipalConventionLookupAsync(configuration);
             break;
         case "7":
-            ConfigureEnvironment(configuration);
+            await ExecuteMunicipalServiceParametersLookupAsync(configuration);
             break;
         case "8":
-            ConfigureCertificate(configuration);
+            ConfigureEnvironment(configuration);
             break;
         case "9":
-            ShowResolvedEndpoints(configuration.Environment);
+            ConfigureCertificate(configuration);
             break;
         case "10":
+            ShowResolvedEndpoints(configuration.Environment);
+            break;
+        case "11":
             return;
         default:
             Console.WriteLine("Opcao invalida. Escolha uma das opcoes do menu.");
@@ -149,6 +154,64 @@ static async Task ExecuteEmissionAsync(SampleConfiguration configuration)
     }
 
     var request = PromptEmissionRequest();
+    await ExecuteEmissionRequestAsync(configuration, client, request);
+}
+
+static async Task ExecuteEmissionFromJsonAsync(SampleConfiguration configuration)
+{
+    var directoryOrFile = PromptForValue(
+        "Diretorio do arquivo JSON",
+        Directory.GetCurrentDirectory(),
+        allowEmpty: false);
+    var filePath = ResolveEmissionRequestJsonPath(directoryOrFile);
+
+    if (!File.Exists(filePath))
+    {
+        CreateEmissionRequestTemplate(filePath);
+        Console.WriteLine();
+        Console.WriteLine($"Template criado em: {filePath}");
+        Console.WriteLine("Preencha o arquivo e execute esta opcao novamente.");
+        Console.WriteLine();
+        return;
+    }
+
+    EmitDpsRequest request;
+    try
+    {
+        request = DeserializeEmissionRequestFromJson(filePath);
+    }
+    catch (Exception exception) when (exception is JsonException or NotSupportedException or IOException or UnauthorizedAccessException)
+    {
+        Console.WriteLine($"Falha ao carregar o JSON de emissao: {exception.Message}");
+        WriteInnerException(exception);
+        Console.WriteLine();
+        return;
+    }
+
+    using var client = CreateClient(configuration);
+    if (client is null)
+    {
+        return;
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"Arquivo de emissao: {filePath}");
+    await ExecuteEmissionRequestAsync(configuration, client, request);
+}
+
+static async Task ExecuteEmissionRequestAsync(
+    SampleConfiguration configuration,
+    ClientContext client,
+    EmitDpsRequest request)
+{
+    var validationError = ValidateEmissionRequest(request);
+    if (validationError is not null)
+    {
+        Console.WriteLine($"Dados de emissao invalidos: {validationError}");
+        Console.WriteLine();
+        return;
+    }
+
     configuration.MunicipalityCode = request.MunicipalityCode;
     configuration.ServiceCode = request.Service.NationalTaxationCode;
 
@@ -222,6 +285,13 @@ static async Task ExecuteEmissionAsync(SampleConfiguration configuration)
     }
 
     Console.WriteLine();
+}
+
+static EmitDpsRequest DeserializeEmissionRequestFromJson(string filePath)
+{
+    var content = File.ReadAllText(filePath, Encoding.UTF8);
+    return JsonSerializer.Deserialize<EmitDpsRequest>(content, CreateEmissionJsonSerializerOptions())
+        ?? throw new JsonException("O arquivo JSON nao contem uma requisicao de emissao valida.");
 }
 
 static async Task ExecuteMunicipalConventionLookupAsync(SampleConfiguration configuration)
@@ -817,14 +887,15 @@ static void WriteMenu(SampleConfiguration configuration)
     Console.WriteLine("Menu");
     Console.WriteLine("1. Consultar NFS-e por chave");
     Console.WriteLine("2. Emitir DPS e gerar NFS-e");
-    Console.WriteLine("3. Consultar DPS por id");
-    Console.WriteLine("4. Verificar DPS por HEAD");
-    Console.WriteLine("5. Consultar convenio municipal");
-    Console.WriteLine("6. Consultar aliquota municipal por servico");
-    Console.WriteLine("7. Alterar ambiente");
-    Console.WriteLine("8. Configurar certificado");
-    Console.WriteLine("9. Mostrar endpoints resolvidos");
-    Console.WriteLine("10. Sair");
+    Console.WriteLine("3. Emitir DPS por JSON");
+    Console.WriteLine("4. Consultar DPS por id");
+    Console.WriteLine("5. Verificar DPS por HEAD");
+    Console.WriteLine("6. Consultar convenio municipal");
+    Console.WriteLine("7. Consultar aliquota municipal por servico");
+    Console.WriteLine("8. Alterar ambiente");
+    Console.WriteLine("9. Configurar certificado");
+    Console.WriteLine("10. Mostrar endpoints resolvidos");
+    Console.WriteLine("11. Sair");
     Console.WriteLine($"Ambiente atual: {GetEnvironmentLabel(configuration.Environment)}");
     Console.Write("Escolha uma opcao: ");
 }
@@ -856,6 +927,152 @@ static string PromptForValue(string label, string? currentValue, bool allowEmpty
     }
 
     return value?.Trim() ?? string.Empty;
+}
+
+static string ResolveEmissionRequestJsonPath(string directoryOrFile)
+{
+    var resolvedPath = Path.GetFullPath(Environment.ExpandEnvironmentVariables(directoryOrFile));
+    return string.Equals(Path.GetExtension(resolvedPath), ".json", StringComparison.OrdinalIgnoreCase)
+        ? resolvedPath
+        : Path.Combine(resolvedPath, "emit-dps.request.json");
+}
+
+static void CreateEmissionRequestTemplate(string filePath)
+{
+    var directory = Path.GetDirectoryName(filePath);
+    if (!string.IsNullOrWhiteSpace(directory))
+    {
+        Directory.CreateDirectory(directory);
+    }
+
+    var templatePath = Path.Combine(AppContext.BaseDirectory, "emit-dps.request.template.json");
+    if (File.Exists(templatePath))
+    {
+        File.Copy(templatePath, filePath, overwrite: false);
+        return;
+    }
+
+    File.WriteAllText(filePath, CreateDefaultEmissionRequestTemplateJson(), new UTF8Encoding(false));
+}
+
+static JsonSerializerOptions CreateEmissionJsonSerializerOptions()
+{
+    var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+    {
+        AllowTrailingCommas = true,
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        WriteIndented = true
+    };
+    options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true));
+
+    return options;
+}
+
+static string? ValidateEmissionRequest(EmitDpsRequest request)
+{
+    if (string.IsNullOrWhiteSpace(request.Series))
+    {
+        return "Informe series.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Number))
+    {
+        return "Informe number.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.MunicipalityCode))
+    {
+        return "Informe municipalityCode.";
+    }
+
+    if (request.Provider is null)
+    {
+        return "Informe provider.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Provider.TaxId))
+    {
+        return "Informe provider.taxId.";
+    }
+
+    if (request.Service is null)
+    {
+        return "Informe service.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Service.NationalTaxationCode))
+    {
+        return "Informe service.nationalTaxationCode.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Service.Description))
+    {
+        return "Informe service.description.";
+    }
+
+    if (request.Service.Amount <= 0)
+    {
+        return "Informe service.amount maior que zero.";
+    }
+
+    if (request.Taxation is null)
+    {
+        return "Informe taxation.";
+    }
+
+    return null;
+}
+
+static string CreateDefaultEmissionRequestTemplateJson()
+{
+    return """
+        {
+          "series": "1",
+          "number": "1",
+          "competenceDate": "2026-04-29",
+          "issuedAt": "2026-04-29T10:18:51-03:00",
+          "municipalityCode": "3127701",
+          "emitterType": 1,
+          "provider": {
+            "taxId": "31145096000100",
+            "municipalRegistration": null,
+            "name": "POSTO SAO VITOR LTDA",
+            "address": null,
+            "phone": null,
+            "email": null,
+            "simplesNationalOption": 1,
+            "simplifiedNationalTaxRegime": null,
+            "specialTaxRegime": 0
+          },
+          "recipient": {
+            "taxId": "12335348000119",
+            "name": "CONECTIVA SISTEMAS LTDA",
+            "municipalRegistration": null,
+            "address": null,
+            "phone": null,
+            "email": null
+          },
+          "service": {
+            "serviceLocationMunicipalityCode": "3127701",
+            "nationalTaxationCode": "010201",
+            "municipalTaxationCode": null,
+            "description": "PROGRAMACAO DE SISTEMAS",
+            "nationalClassificationCode": null,
+            "internalCode": null,
+            "amount": 1.00,
+            "amountReceivedByIntermediary": null,
+            "unconditionalDiscountAmount": null,
+            "conditionalDiscountAmount": null
+          },
+          "taxation": {
+            "issTaxationType": 1,
+            "issWithholdingType": 1,
+            "issRate": 3.00,
+            "totalTaxIndicator": 0
+          }
+        }
+        """;
 }
 
 static bool PromptYesNo(string label)
