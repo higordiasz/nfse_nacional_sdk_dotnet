@@ -67,7 +67,9 @@ public sealed class NFSeXmlSerializerEmitDpsTests
         using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
 
         var result = serializer.SerializeSignedDps(
-            NFSeTransmissionFixtures.CreateRequest(includeOptionalValues: true),
+            NFSeTransmissionFixtures.CreateRequest(
+                includeOptionalValues: true,
+                issWithholdingType: NFSeIssWithholdingType.WithheldByRecipient),
             new EmitDpsSerializationContext
             {
                 Environment = NFSeEnvironment.ProductionRestricted,
@@ -101,6 +103,26 @@ public sealed class NFSeXmlSerializerEmitDpsTests
     }
 
     [Fact]
+    public void SerializeSignedDps_ShouldRejectIssRateForSimpleNationalWithoutIssWithholding()
+    {
+        var serializer = new NFSeXmlSerializer();
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+
+        var exception = Assert.Throws<NFSeSerializationException>(() =>
+            serializer.SerializeSignedDps(
+                NFSeTransmissionFixtures.CreateRequest(issRate: 0.00m),
+                new EmitDpsSerializationContext
+                {
+                    Environment = NFSeEnvironment.ProductionRestricted,
+                    SigningCertificate = certificate,
+                    ApplicationVersion = "NFSeNacionalSdk_Tests"
+                }));
+
+        Assert.Contains("taxation.IssRate must be omitted", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("taxation.issRate to null", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SerializeSignedDps_ShouldRejectXmlInvalidAgainstOfficialDpsSchema()
     {
         var serializer = new NFSeXmlSerializer();
@@ -128,7 +150,9 @@ public sealed class NFSeXmlSerializerEmitDpsTests
         using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
 
         var result = serializer.SerializeSignedDps(
-            NFSeTransmissionFixtures.CreateRequest(includeOptionalValues: true),
+            NFSeTransmissionFixtures.CreateRequest(
+                includeOptionalValues: true,
+                issWithholdingType: NFSeIssWithholdingType.WithheldByRecipient),
             new EmitDpsSerializationContext
             {
                 Environment = NFSeEnvironment.ProductionRestricted,

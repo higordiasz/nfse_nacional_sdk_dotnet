@@ -17,7 +17,9 @@ internal static class NFSeTransmissionFixtures
         bool includeOptionalValues = false,
         decimal? amount = null,
         NFSeSimplifiedNationalTaxRegime? simplifiedNationalTaxRegime =
-            NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational)
+            NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational,
+        NFSeIssWithholdingType issWithholdingType = NFSeIssWithholdingType.NotWithheld,
+        decimal? issRate = null)
     {
         return new EmitDpsRequest
         {
@@ -66,8 +68,8 @@ internal static class NFSeTransmissionFixtures
             Taxation = new EmitDpsTaxation
             {
                 IssTaxationType = NFSeIssTaxationType.TaxableOperation,
-                IssWithholdingType = NFSeIssWithholdingType.NotWithheld,
-                IssRate = includeOptionalValues ? 5.00m : null,
+                IssWithholdingType = issWithholdingType,
+                IssRate = issRate ?? (includeOptionalValues ? 5.00m : null),
                 TotalTaxIndicator = NFSeTotalTaxIndicator.NotInformed
             }
         };

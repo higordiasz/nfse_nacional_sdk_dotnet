@@ -4,6 +4,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Contracts.Serialization;
+using NFSeNacionalSdk.Core.Enums;
 using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Serialization.Xml.Lookup;
 using NFSeNacionalSdk.Serialization.Xml.Transmission.Models;
@@ -40,6 +41,8 @@ internal sealed class EmitDpsXmlBuilder
         var series = NormalizeSeries(request.Series);
         var number = NormalizeNumber(request.Number);
         var dpsId = BuildDpsId(municipalityCode, providerTaxId, series, number);
+
+        ValidateBusinessRules(provider, taxation);
 
         var envelope = new EmitDpsEnvelopeXml
         {
@@ -193,6 +196,20 @@ internal sealed class EmitDpsXmlBuilder
                 }
             }
         };
+    }
+
+    private static void ValidateBusinessRules(EmitDpsProvider provider, EmitDpsTaxation taxation)
+    {
+        if (provider.SimplesNationalOption == NFSeSimplesNationalOption.MicroOrSmallBusiness &&
+            provider.SimplifiedNationalTaxRegime == NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational &&
+            taxation.IssWithholdingType == NFSeIssWithholdingType.NotWithheld &&
+            taxation.IssRate is not null)
+        {
+            throw new NFSeSerializationException(
+                "taxation.IssRate must be omitted when provider.SimplesNationalOption is MicroOrSmallBusiness (3), " +
+                "provider.SimplifiedNationalTaxRegime is FederalAndMunicipalTaxesInSimplesNational (1), and " +
+                "taxation.IssWithholdingType is NotWithheld (1). Set taxation.issRate to null.");
+        }
     }
 
     private static EmitDpsDiscountValuesXml? BuildDiscountValues(EmitDpsService service)

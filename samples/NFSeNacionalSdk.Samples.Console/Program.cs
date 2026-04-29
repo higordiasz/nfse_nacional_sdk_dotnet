@@ -1036,10 +1036,16 @@ static string? ValidateEmissionRequest(EmitDpsRequest request)
         return "Informe taxation.";
     }
 
-    return
+    var taxationEnumValidation =
         ValidateEnumValue(request.Taxation.IssTaxationType, "taxation.issTaxationType") ??
         ValidateEnumValue(request.Taxation.IssWithholdingType, "taxation.issWithholdingType") ??
         ValidateEnumValue(request.Taxation.TotalTaxIndicator, "taxation.totalTaxIndicator");
+    if (taxationEnumValidation is not null)
+    {
+        return taxationEnumValidation;
+    }
+
+    return ValidateEmissionBusinessRules(request);
 }
 
 static string? ValidateEnumValue<TEnum>(TEnum value, string fieldName)
@@ -1076,6 +1082,21 @@ static string GetDefinedEnumValues<TEnum>()
         ", ",
         Enum.GetValues<TEnum>()
             .Select(value => Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture)));
+}
+
+static string? ValidateEmissionBusinessRules(EmitDpsRequest request)
+{
+    if (request.Provider.SimplesNationalOption == NFSeSimplesNationalOption.MicroOrSmallBusiness &&
+        request.Provider.SimplifiedNationalTaxRegime == NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational &&
+        request.Taxation.IssWithholdingType == NFSeIssWithholdingType.NotWithheld &&
+        request.Taxation.IssRate is not null)
+    {
+        return "Informe taxation.issRate como null quando provider.simplesNationalOption = 3, " +
+            "provider.simplifiedNationalTaxRegime = 1 e taxation.issWithholdingType = 1. " +
+            "A SEFIN nao permite enviar pAliq nesse caso.";
+    }
+
+    return null;
 }
 
 static string CreateDefaultEmissionRequestTemplateJson()
