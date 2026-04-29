@@ -1,45 +1,45 @@
 {
-  "series": "1",
-  "number": "1",
-  "competenceDate": "2026-04-29",
-  "issuedAt": "2026-04-29T10:18:51-03:00",
-  "municipalityCode": "3127701",
-  "emitterType": 1,
-  "provider": {
-    "taxId": "31145096000100",
-    "municipalRegistration": null,
-    "name": "POSTO SAO VITOR LTDA",
-    "address": null,
-    "phone": null,
-    "email": null,
-    "simplesNationalOption": 1,
-    "simplifiedNationalTaxRegime": null,
-    "specialTaxRegime": 0
-  },
-  "recipient": {
-    "taxId": "12335348000119",
-    "name": "CONECTIVA SISTEMAS LTDA",
-    "municipalRegistration": null,
-    "address": null,
-    "phone": null,
-    "email": null
-  },
-  "service": {
-    "serviceLocationMunicipalityCode": "3127701",
-    "nationalTaxationCode": "010201",
-    "municipalTaxationCode": null,
-    "description": "PROGRAMACAO DE SISTEMAS",
-    "nationalClassificationCode": null,
-    "internalCode": null,
-    "amount": 1.00,
-    "amountReceivedByIntermediary": null,
-    "unconditionalDiscountAmount": null,
-    "conditionalDiscountAmount": null
-  },
-  "taxation": {
-    "issTaxationType": 1,
-    "issWithholdingType": 1,
-    "issRate": 3.00,
-    "totalTaxIndicator": 0
-  }
+    "series": "1",
+    "number": "1",
+    "competenceDate": "2026-04-29",
+    "issuedAt": "2026-04-29T10:18:51-03:00",
+    "municipalityCode": "",
+    "emitterType": 1,
+    "provider": {
+        "taxId": "",
+        "municipalRegistration": null,
+        "name": "",
+        "address": null,
+        "phone": null,
+        "email": null,
+        "simplesNationalOption": 1,
+        "simplifiedNationalTaxRegime": null,
+        "specialTaxRegime": 0
+    },
+    "recipient": {
+        "taxId": "",
+        "name": "",
+        "municipalRegistration": null,
+        "address": null,
+        "phone": null,
+        "email": null
+    },
+    "service": {
+        "serviceLocationMunicipalityCode": "",
+        "nationalTaxationCode": "",
+        "municipalTaxationCode": null,
+        "description": "",
+        "nationalClassificationCode": null,
+        "internalCode": null,
+        "amount": 1.0,
+        "amountReceivedByIntermediary": null,
+        "unconditionalDiscountAmount": null,
+        "conditionalDiscountAmount": null
+    },
+    "taxation": {
+        "issTaxationType": 1,
+        "issWithholdingType": 1,
+        "issRate": 3.0,
+        "totalTaxIndicator": 0
+    }
 }
