@@ -195,6 +195,33 @@ Para uma versao estavel, sobrescreva a versao no pack:
 dotnet pack --configuration Release --no-build --output artifacts/packages -p:Version=0.1.0
 ```
 
+## Release pelo GitHub Actions
+
+O workflow `.github/workflows/release.yml` publica os pacotes no NuGet usando Trusted Publishing.
+
+Configuracao necessaria no GitHub:
+
+- Environment: `release`
+- Environment variable: `NUGET_USER` com o username do perfil no nuget.org, nao o e-mail
+- Secrets: nenhum, quando Trusted Publishing estiver configurado
+- Deployment branches and tags: selecione tags `v*` para releases por tag; adicione tambem a branch `main` apenas se quiser permitir publicacao manual pelo botao do GitHub Actions
+- Required reviewers: recomendado para evitar publicacao acidental
+
+Configuracao necessaria no nuget.org:
+
+- Trusted Publishing apontando para este repositorio
+- Workflow file: `release.yml`
+- Environment: `release`
+
+Publicar por tag:
+
+```bash
+git tag v0.1.0-preview.1
+git push origin v0.1.0-preview.1
+```
+
+Ou execute manualmente o workflow `Release NuGet` no GitHub e informe a versao, por exemplo `0.1.0-preview.1`. Para esse modo manual, a branch usada na execucao precisa estar permitida nas regras do Environment.
+
 ## Estrutura
 
 ```text
