@@ -986,6 +986,12 @@ static string? ValidateEmissionRequest(EmitDpsRequest request)
         return "Informe municipalityCode.";
     }
 
+    var requestEnumValidation = ValidateEnumValue(request.EmitterType, "emitterType");
+    if (requestEnumValidation is not null)
+    {
+        return requestEnumValidation;
+    }
+
     if (request.Provider is null)
     {
         return "Informe provider.";
@@ -994,6 +1000,15 @@ static string? ValidateEmissionRequest(EmitDpsRequest request)
     if (string.IsNullOrWhiteSpace(request.Provider.TaxId))
     {
         return "Informe provider.taxId.";
+    }
+
+    var providerEnumValidation =
+        ValidateEnumValue(request.Provider.SimplesNationalOption, "provider.simplesNationalOption") ??
+        ValidateOptionalEnumValue(request.Provider.SimplifiedNationalTaxRegime, "provider.simplifiedNationalTaxRegime") ??
+        ValidateEnumValue(request.Provider.SpecialTaxRegime, "provider.specialTaxRegime");
+    if (providerEnumValidation is not null)
+    {
+        return providerEnumValidation;
     }
 
     if (request.Service is null)
@@ -1021,7 +1036,46 @@ static string? ValidateEmissionRequest(EmitDpsRequest request)
         return "Informe taxation.";
     }
 
-    return null;
+    return
+        ValidateEnumValue(request.Taxation.IssTaxationType, "taxation.issTaxationType") ??
+        ValidateEnumValue(request.Taxation.IssWithholdingType, "taxation.issWithholdingType") ??
+        ValidateEnumValue(request.Taxation.TotalTaxIndicator, "taxation.totalTaxIndicator");
+}
+
+static string? ValidateEnumValue<TEnum>(TEnum value, string fieldName)
+    where TEnum : struct, Enum
+{
+    if (Enum.IsDefined(typeof(TEnum), value))
+    {
+        return null;
+    }
+
+    return $"Informe {fieldName} com um dos valores validos: {GetDefinedEnumValues<TEnum>()}.";
+}
+
+static string? ValidateOptionalEnumValue<TEnum>(TEnum? value, string fieldName)
+    where TEnum : struct, Enum
+{
+    if (value is null)
+    {
+        return null;
+    }
+
+    if (Enum.IsDefined(typeof(TEnum), value.Value))
+    {
+        return null;
+    }
+
+    return $"Informe {fieldName} como null ou com um dos valores validos: {GetDefinedEnumValues<TEnum>()}.";
+}
+
+static string GetDefinedEnumValues<TEnum>()
+    where TEnum : struct, Enum
+{
+    return string.Join(
+        ", ",
+        Enum.GetValues<TEnum>()
+            .Select(value => Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture)));
 }
 
 static string CreateDefaultEmissionRequestTemplateJson()

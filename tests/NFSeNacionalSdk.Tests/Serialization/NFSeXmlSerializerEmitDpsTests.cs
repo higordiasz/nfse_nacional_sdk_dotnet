@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using System.Xml.Schema;
 using NFSeNacionalSdk.Contracts.Serialization;
 using NFSeNacionalSdk.Core.Enums;
+using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Serialization.Xml;
 using NFSeNacionalSdk.Tests.TestData;
 
@@ -78,6 +79,46 @@ public sealed class NFSeXmlSerializerEmitDpsTests
         Assert.Contains("<vDescIncond>100.00</vDescIncond>", result.XmlContent, StringComparison.Ordinal);
         Assert.Contains("<vDescCond>50.25</vDescCond>", result.XmlContent, StringComparison.Ordinal);
         Assert.Contains("<pAliq>5.00</pAliq>", result.XmlContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SerializeSignedDps_ShouldFormatServiceAmountWithTwoDecimalPlaces()
+    {
+        var serializer = new NFSeXmlSerializer();
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+
+        var result = serializer.SerializeSignedDps(
+            NFSeTransmissionFixtures.CreateRequest(amount: 1.0m),
+            new EmitDpsSerializationContext
+            {
+                Environment = NFSeEnvironment.ProductionRestricted,
+                SigningCertificate = certificate,
+                ApplicationVersion = "NFSeNacionalSdk_Tests"
+            });
+
+        Assert.Contains("<vServ>1.00</vServ>", result.XmlContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("<vServ>1.0</vServ>", result.XmlContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SerializeSignedDps_ShouldRejectXmlInvalidAgainstOfficialDpsSchema()
+    {
+        var serializer = new NFSeXmlSerializer();
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+
+        var exception = Assert.Throws<NFSeSerializationException>(() =>
+            serializer.SerializeSignedDps(
+                NFSeTransmissionFixtures.CreateRequest(
+                    simplifiedNationalTaxRegime: (NFSeSimplifiedNationalTaxRegime)0),
+                new EmitDpsSerializationContext
+                {
+                    Environment = NFSeEnvironment.ProductionRestricted,
+                    SigningCertificate = certificate,
+                    ApplicationVersion = "NFSeNacionalSdk_Tests"
+                }));
+
+        Assert.Contains("/DPS/infDPS/prest/regTrib/regApTribSN", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("0", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

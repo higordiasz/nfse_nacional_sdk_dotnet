@@ -13,7 +13,11 @@ internal static class NFSeTransmissionFixtures
     public const string Number = "1";
     public const string ExpectedDpsId = "DPS355030821234567800019970000000000000000001";
 
-    public static EmitDpsRequest CreateRequest(bool includeOptionalValues = false)
+    public static EmitDpsRequest CreateRequest(
+        bool includeOptionalValues = false,
+        decimal? amount = null,
+        NFSeSimplifiedNationalTaxRegime? simplifiedNationalTaxRegime =
+            NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational)
     {
         return new EmitDpsRequest
         {
@@ -30,7 +34,7 @@ internal static class NFSeTransmissionFixtures
                 Phone = "(11) 99999-0000",
                 Email = "contato@prestador.example",
                 SimplesNationalOption = NFSeSimplesNationalOption.MicroOrSmallBusiness,
-                SimplifiedNationalTaxRegime = NFSeSimplifiedNationalTaxRegime.FederalAndMunicipalTaxesInSimplesNational,
+                SimplifiedNationalTaxRegime = simplifiedNationalTaxRegime,
                 SpecialTaxRegime = NFSeSpecialTaxRegime.None
             },
             Recipient = new EmitDpsRecipient
@@ -54,7 +58,7 @@ internal static class NFSeTransmissionFixtures
                 NationalTaxationCode = "140101",
                 Description = "Consultoria especializada",
                 NationalClassificationCode = "111032200",
-                Amount = 1500.75m,
+                Amount = amount ?? 1500.75m,
                 AmountReceivedByIntermediary = includeOptionalValues ? 1450.75m : null,
                 UnconditionalDiscountAmount = includeOptionalValues ? 100.00m : null,
                 ConditionalDiscountAmount = includeOptionalValues ? 50.25m : null

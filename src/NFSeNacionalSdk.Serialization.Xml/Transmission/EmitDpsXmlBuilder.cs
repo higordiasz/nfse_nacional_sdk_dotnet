@@ -15,6 +15,7 @@ internal sealed class EmitDpsXmlBuilder
     private const int ApplicationVersionMaxLength = 20;
 
     private readonly EmitDpsXmlSigner _signer = new();
+    private readonly EmitDpsXmlSchemaValidator _schemaValidator = new();
 
     public EmitDpsSerializationResult Build(
         EmitDpsRequest request,
@@ -62,6 +63,7 @@ internal sealed class EmitDpsXmlBuilder
 
         var unsignedXml = SerializeUnsigned(envelope);
         var signedXml = _signer.Sign(unsignedXml, dpsId, context.SigningCertificate);
+        _schemaValidator.Validate(signedXml);
 
         return new EmitDpsSerializationResult
         {
@@ -171,7 +173,10 @@ internal sealed class EmitDpsXmlBuilder
                 ReceivedAmount = FormatOptionalAmount(
                     service.AmountReceivedByIntermediary,
                     nameof(service.AmountReceivedByIntermediary)),
-                Amount = decimal.Round(service.Amount, 2, MidpointRounding.AwayFromZero)
+                Amount = FormatNonNegativeDecimal(
+                    service.Amount,
+                    nameof(service.Amount),
+                    maximumExclusive: 1_000_000_000_000_000m)
             },
             DiscountValues = BuildDiscountValues(service),
             Taxation = new EmitDpsTaxationXml

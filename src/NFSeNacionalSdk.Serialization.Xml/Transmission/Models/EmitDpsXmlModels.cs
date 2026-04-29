@@ -196,7 +196,7 @@ public sealed class EmitDpsServiceValuesXml
     public string? ReceivedAmount { get; set; }
 
     [XmlElement("vServ", Order = 1)]
-    public decimal Amount { get; set; }
+    public string Amount { get; set; } = string.Empty;
 }
 
 public sealed class EmitDpsDiscountValuesXml
