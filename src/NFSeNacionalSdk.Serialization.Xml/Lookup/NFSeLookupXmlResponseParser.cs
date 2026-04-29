@@ -49,17 +49,36 @@ internal sealed class NFSeLookupXmlResponseParser
     private static NFSeLookupDeserializationResult MapSuccess(NFSeLookupSuccessEnvelopeXml envelope)
     {
         var info = envelope.Info ?? throw new NFSeSerializationException("NFSe lookup XML does not contain infNFSe.");
+        var dps = info.Dps;
+        var dpsInfo = dps?.Info;
 
-        var issuer = MapParty(info.Issuer, info.Dps?.Provider);
-        var recipient = MapParty(info.Dps?.Recipient);
-        var service = MapService(info.Dps);
+        var issuer = MapParty(info.Issuer, dpsInfo?.Provider, dps?.LegacyProvider);
+        var recipient = MapParty(dpsInfo?.Recipient, dps?.LegacyRecipient);
+        var service = MapService(info, dps);
 
         var document = new NFSeDocument
         {
             AccessKey = ExtractAccessKey(info.Id),
             Number = TrimToNull(info.Number),
+            DfseNumber = TrimToNull(info.DfseNumber),
             VerificationCode = null,
-            IssuedAt = ParseDateTimeOffset(info.ProcessedAt) ?? ParseDateTimeOffset(info.Dps?.IssuedAt),
+            IssuedAt = ParseDateTimeOffset(info.ProcessedAt)
+                ?? ParseDateTimeOffset(dpsInfo?.IssuedAt)
+                ?? ParseDateTimeOffset(dps?.LegacyIssuedAt),
+            DpsIssuedAt = ParseDateTimeOffset(dpsInfo?.IssuedAt)
+                ?? ParseDateTimeOffset(dps?.LegacyIssuedAt),
+            CompetenceDate = ParseDateOnly(dpsInfo?.CompetenceDate ?? dps?.LegacyCompetenceDate),
+            StatusCode = TrimToNull(info.StatusCode),
+            ApplicationVersion = TrimToNull(info.ApplicationVersion),
+            IssuingMunicipalityName = TrimToNull(info.IssuingMunicipalityName),
+            ServiceLocationMunicipalityName = TrimToNull(info.ServiceLocationMunicipalityName),
+            IncidenceMunicipalityCode = TrimToNull(info.IncidenceMunicipalityCode),
+            IncidenceMunicipalityName = TrimToNull(info.IncidenceMunicipalityName),
+            NationalTaxationDescription = TrimToNull(info.NationalTaxationDescription),
+            DpsId = TrimToNull(dpsInfo?.Id) ?? TrimToNull(dps?.LegacyId),
+            DpsSeries = TrimToNull(dpsInfo?.Series) ?? TrimToNull(dps?.LegacySeries),
+            DpsNumber = TrimToNull(dpsInfo?.Number) ?? TrimToNull(dps?.LegacyNumber),
+            NetAmount = ParseDecimal(info.Values?.NetAmount),
             Issuer = issuer,
             Recipient = recipient,
             Service = service
@@ -95,47 +114,102 @@ internal sealed class NFSeLookupXmlResponseParser
         };
     }
 
-    private static NFSeLookupPartyXml? Prefer(params NFSeLookupPartyXml?[] candidates)
-    {
-        return candidates.FirstOrDefault(candidate => candidate is not null);
-    }
-
     private static NFSeParty? MapParty(params NFSeLookupPartyXml?[] candidates)
     {
-        var source = Prefer(candidates);
-        if (source is null)
+        var sources = candidates
+            .Where(candidate => candidate is not null)
+            .Cast<NFSeLookupPartyXml>()
+            .ToArray();
+
+        if (sources.Length == 0)
         {
             return null;
         }
 
         var party = new NFSeParty
         {
-            Name = TrimToNull(source.Name),
-            TaxId = TrimToNull(source.Cnpj) ?? TrimToNull(source.Cpf),
-            MunicipalRegistration = TrimToNull(source.MunicipalRegistration),
-            Email = TrimToNull(source.Email)
+            Name = FirstValue(sources, source => source.Name),
+            TaxId = FirstValue(sources, source => TrimToNull(source.Cnpj) ?? TrimToNull(source.Cpf)),
+            MunicipalRegistration = FirstValue(sources, source => source.MunicipalRegistration),
+            Phone = FirstValue(sources, source => source.Phone),
+            Email = FirstValue(sources, source => source.Email),
+            Address = sources
+                .Select(source => MapAddress((NFSeLookupAddressXml?)source.NationalAddress ?? source.Address))
+                .FirstOrDefault(address => address is not null)
         };
 
-        return HasAnyValue(party.Name, party.TaxId, party.MunicipalRegistration, party.Email)
+        return HasAnyValue(party.Name, party.TaxId, party.MunicipalRegistration, party.Phone, party.Email)
+            || party.Address is not null
             ? party
             : null;
     }
 
-    private static NFSeService? MapService(NFSeLookupDpsXml? dps)
+    private static string? FirstValue<T>(IEnumerable<T> sources, Func<T, string?> selector)
     {
-        if (dps?.Service is null && dps?.Values is null)
+        return sources
+            .Select(source => TrimToNull(selector(source)))
+            .FirstOrDefault(value => value is not null);
+    }
+
+    private static NFSeAddress? MapAddress(NFSeLookupAddressXml? source)
+    {
+        if (source is null)
+        {
+            return null;
+        }
+
+        var address = new NFSeAddress
+        {
+            Street = TrimToNull(source.Street),
+            Number = TrimToNull(source.Number),
+            Complement = TrimToNull(source.Complement),
+            Neighborhood = TrimToNull(source.Neighborhood),
+            MunicipalityCode = TrimToNull(source.MunicipalityCode),
+            State = TrimToNull(source.State),
+            ZipCode = TrimToNull(source.ZipCode)
+        };
+
+        return HasAddressValue(address) ? address : null;
+    }
+
+    private static NFSeService? MapService(NFSeLookupInfoXml info, NFSeLookupDpsXml? dps)
+    {
+        var dpsInfo = dps?.Info;
+        var serviceSource = dpsInfo?.Service ?? dps?.LegacyService;
+        var valuesSource = dpsInfo?.Values ?? dps?.LegacyValues;
+
+        if (serviceSource is null && valuesSource is null)
         {
             return null;
         }
 
         var service = new NFSeService
         {
-            Description = TrimToNull(dps?.Service?.Description),
-            ServiceCode = TrimToNull(dps?.Service?.Code?.NationalTaxCode),
-            ServiceAmount = ParseDecimal(dps?.Values?.ServiceValues?.ServiceAmount)
+            Description = TrimToNull(serviceSource?.Code?.Description)
+                ?? TrimToNull(serviceSource?.LegacyDescription),
+            ServiceCode = TrimToNull(serviceSource?.Code?.NationalTaxCode),
+            MunicipalServiceCode = TrimToNull(serviceSource?.Code?.MunicipalTaxCode),
+            NationalClassificationCode = TrimToNull(serviceSource?.Code?.NationalClassificationCode),
+            InternalCode = TrimToNull(serviceSource?.Code?.InternalContributorCode),
+            NationalTaxationDescription = TrimToNull(info.NationalTaxationDescription),
+            LocationMunicipalityCode = TrimToNull(serviceSource?.Location?.MunicipalityCode)
+                ?? TrimToNull(dpsInfo?.MunicipalityCode)
+                ?? TrimToNull(dps?.LegacyMunicipalityCode),
+            LocationMunicipalityName = TrimToNull(info.ServiceLocationMunicipalityName),
+            ServiceAmount = ParseDecimal(valuesSource?.ServiceValues?.ServiceAmount)
+                ?? ParseDecimal(info.Values?.NetAmount)
         };
 
-        return HasAnyValue(service.Description, service.ServiceCode) || service.ServiceAmount.HasValue
+        return HasAnyValue(
+                service.Description,
+                service.ServiceCode,
+                service.MunicipalServiceCode,
+                service.NationalClassificationCode,
+                service.InternalCode,
+                service.NationalTaxationDescription,
+                service.LocationMunicipalityCode,
+                service.LocationMunicipalityName)
+            || service.ServiceAmount.HasValue
             ? service
             : null;
     }
@@ -188,6 +262,23 @@ internal sealed class NFSeLookupXmlResponseParser
             : null;
     }
 
+    private static DateOnly? ParseDateOnly(string? rawValue)
+    {
+        var normalizedValue = TrimToNull(rawValue);
+        if (normalizedValue is null)
+        {
+            return null;
+        }
+
+        return DateOnly.TryParse(
+            normalizedValue,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var result)
+            ? result
+            : null;
+    }
+
     private static T DeserializeXml<T>(string content, string rootName, string rootNamespace)
     {
         var serializer = new XmlSerializer(
@@ -218,5 +309,17 @@ internal sealed class NFSeLookupXmlResponseParser
     private static bool HasAnyValue(params string?[] values)
     {
         return values.Any(value => !string.IsNullOrWhiteSpace(value));
+    }
+
+    private static bool HasAddressValue(NFSeAddress address)
+    {
+        return HasAnyValue(
+            address.Street,
+            address.Number,
+            address.Complement,
+            address.Neighborhood,
+            address.MunicipalityCode,
+            address.State,
+            address.ZipCode);
     }
 }

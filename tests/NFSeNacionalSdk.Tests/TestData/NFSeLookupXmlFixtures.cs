@@ -24,34 +24,58 @@ internal static class NFSeLookupXmlFixtures
             <nDFSe>123456789012345</nDFSe>
             <emit>
               <CNPJ>12345678000199</CNPJ>
-              <IM>998877</IM>
               <xNome>Prestador Exemplo LTDA</xNome>
+              <enderNac>
+                <xLgr>Rua do Prestador</xLgr>
+                <nro>100</nro>
+                <xCpl>Sala 10</xCpl>
+                <xBairro>Centro</xBairro>
+                <cMun>3550308</cMun>
+                <UF>SP</UF>
+                <CEP>01001000</CEP>
+              </enderNac>
+              <fone>11999990000</fone>
               <email>contato@prestador.example</email>
             </emit>
-            <DPS Id="DPS12345678901234567890123456789012345678901234567890">
-              <dhEmi>2026-04-13T15:25:00-03:00</dhEmi>
-              <prest>
-                <CNPJ>12345678000199</CNPJ>
-                <IM>998877</IM>
-                <xNome>Prestador Exemplo LTDA</xNome>
-                <email>contato@prestador.example</email>
-              </prest>
-              <toma>
-                <CPF>12345678901</CPF>
-                <xNome>Tomador Exemplo SA</xNome>
-                <email>financeiro@tomador.example</email>
-              </toma>
-              <serv>
-                <cServ>
-                  <cTribNac>140101</cTribNac>
-                </cServ>
-                <xDescServ>Consultoria especializada</xDescServ>
-              </serv>
-              <valores>
-                <vServPrest>
-                  <vServ>1500.75</vServ>
-                </vServPrest>
-              </valores>
+            <valores>
+              <vLiq>1500.75</vLiq>
+            </valores>
+            <DPS versao="1.01">
+              <infDPS Id="DPS12345678901234567890123456789012345678901234567890">
+                <dhEmi>2026-04-13T15:25:00-03:00</dhEmi>
+                <serie>70000</serie>
+                <nDPS>1</nDPS>
+                <dCompet>2026-04-13</dCompet>
+                <cLocEmi>3550308</cLocEmi>
+                <prest>
+                  <CNPJ>12345678000199</CNPJ>
+                  <IM>998877</IM>
+                  <xNome>Prestador Exemplo LTDA</xNome>
+                  <email>contato@prestador.example</email>
+                </prest>
+                <toma>
+                  <CPF>12345678901</CPF>
+                  <xNome>Tomador Exemplo SA</xNome>
+                  <email>financeiro@tomador.example</email>
+                </toma>
+                <serv>
+                  <locPrest>
+                    <cLocPrestacao>3550308</cLocPrestacao>
+                  </locPrest>
+                  <cServ>
+                    <cTribNac>140101</cTribNac>
+                    <cTribMun>001</cTribMun>
+                    <xDescServ>Consultoria especializada</xDescServ>
+                    <cNBS>111032200</cNBS>
+                    <cIntContrib>CONS-001</cIntContrib>
+                  </cServ>
+                </serv>
+                <valores>
+                  <vServPrest>
+                    <vServ>1500.75</vServ>
+                  </vServPrest>
+                </valores>
+              </infDPS>
             </DPS>
           </infNFSe>
         </NFSe>
