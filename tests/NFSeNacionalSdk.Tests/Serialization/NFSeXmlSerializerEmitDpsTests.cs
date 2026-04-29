@@ -49,6 +49,7 @@ public sealed class NFSeXmlSerializerEmitDpsTests
         Assert.NotNull(document.SelectSingleNode("/nfse:DPS/nfse:infDPS", namespaceManager));
         Assert.NotNull(document.SelectSingleNode($"/nfse:DPS/nfse:infDPS[@Id='{NFSeTransmissionFixtures.ExpectedDpsId}']", namespaceManager));
         Assert.NotNull(document.SelectSingleNode("/nfse:DPS/ds:Signature", namespaceManager));
+        Assert.Single(document.GetElementsByTagName("X509Certificate", SignedXml.XmlDsigNamespaceUrl).OfType<XmlElement>());
 
         var signatureElement = Assert.IsType<XmlElement>(
             document.GetElementsByTagName("Signature", SignedXml.XmlDsigNamespaceUrl).Item(0));

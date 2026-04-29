@@ -148,6 +148,11 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         }
 
         var errorMessages = BuildMessages(apiEnvelope.Errors);
+        if (apiEnvelope.Error is not null)
+        {
+            errorMessages = [..errorMessages, CreateMessage(apiEnvelope.Error)];
+        }
+
         if (errorMessages.Count == 0)
         {
             throw new NFSeTransportException(

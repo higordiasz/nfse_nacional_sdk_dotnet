@@ -29,6 +29,9 @@ internal sealed class SefinNationalTransmissionApiEnvelope
     [JsonPropertyName("erros")]
     public IReadOnlyList<SefinNationalApiMessage>? Errors { get; init; }
 
+    [JsonPropertyName("erro")]
+    public SefinNationalApiMessage? Error { get; init; }
+
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? AdditionalData { get; init; }
 

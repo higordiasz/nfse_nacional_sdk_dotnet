@@ -54,7 +54,6 @@ internal sealed class EmitDpsXmlSigner
 
             var keyInfo = new KeyInfo();
             var x509Data = new KeyInfoX509Data(certificate);
-            x509Data.AddCertificate(certificate);
             keyInfo.AddClause(x509Data);
             signedXml.KeyInfo = keyInfo;
 

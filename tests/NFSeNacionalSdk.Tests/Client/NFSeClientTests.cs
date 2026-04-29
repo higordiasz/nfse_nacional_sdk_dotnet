@@ -46,6 +46,7 @@ public sealed class NFSeClientTests
         Assert.Equal("/nfse", transport.LastRequest.Path);
         Assert.Equal("application/json", transport.LastRequest.ContentType);
         Assert.Equal("application/json", transport.LastRequest.Accept);
+        Assert.Single(JsonDocument.Parse(transport.LastRequest.Content!).RootElement.EnumerateObject());
         Assert.Contains("<Signature", result.SubmittedDpsXml, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -160,6 +161,40 @@ public sealed class NFSeClientTests
         Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
         Assert.Equal($"/dps/{NFSeTransmissionFixtures.ExpectedDpsId}", transport.LastRequest.Path);
         Assert.Equal("application/json", transport.LastRequest.Accept);
+    }
+
+    [Fact]
+    public async Task EmitDpsAsync_ShouldReturnNormalizedStandardErrorResult()
+    {
+        var transport = new CapturingTransport(
+            HttpStatusCode.Forbidden,
+            """
+            {
+              "tipoAmbiente": 2,
+              "versaoAplicativo": "SefinNacional",
+              "dataHoraProcessamento": "2026-04-29T08:50:10.0836516-03:00",
+              "erro": {
+                "codigo": "E1600",
+                "descricao": "Certificado digital da transmissao invalido."
+              }
+            }
+            """);
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted),
+            certificate);
+
+        var result = await client.EmitDpsAsync(NFSeTransmissionFixtures.CreateRequest());
+
+        Assert.False(result.Success);
+        Assert.Equal(HttpStatusCode.Forbidden, result.StatusCode);
+        Assert.Collection(result.Messages, message =>
+        {
+            Assert.Equal("E1600", message.Code);
+            Assert.Equal("Certificado digital da transmissao invalido.", message.Description);
+        });
     }
 
     [Fact]
