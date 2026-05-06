@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+
     <ProjectReference Include="..\NFSeNacionalSdk.Core\NFSeNacionalSdk.Core.csproj" />
     <ProjectReference Include="..\NFSeNacionalSdk.Contracts\NFSeNacionalSdk.Contracts.csproj" />
     <ProjectReference

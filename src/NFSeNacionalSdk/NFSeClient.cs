@@ -13,6 +13,7 @@ using NFSeNacionalSdk.Core.Constants;
 using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Core.Options;
 using NFSeNacionalSdk.Serialization.Xml;
+using NFSeNacionalSdk.Serialization.Xml.Events;
 using NFSeNacionalSdk.SefinNational;
 using NFSeNacionalSdk.Transport.Http;
 
@@ -27,6 +28,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
     private readonly X509Certificate2? _signingCertificate;
     private readonly string _applicationVersion;
     private readonly bool _disposeTransport;
+    private readonly bool _disposeSigningCertificate;
 
     public NFSeClient(
         INFSeTransport transport,
@@ -39,7 +41,8 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             endpoints,
             signingCertificate: null,
             jsonSerializerOptions,
-            disposeTransport: false)
+            disposeTransport: false,
+            disposeSigningCertificate: false)
     {
     }
 
@@ -55,7 +58,8 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             endpoints,
             signingCertificate,
             jsonSerializerOptions,
-            disposeTransport: false)
+            disposeTransport: false,
+            disposeSigningCertificate: false)
     {
     }
 
@@ -66,9 +70,116 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         JsonSerializerOptions? jsonSerializerOptions = null)
         : this(
             CreateDefaultDependencies(options, clientCertificate, httpClient),
-            clientCertificate,
             jsonSerializerOptions)
     {
+    }
+
+    public async Task<CancelNfseResult> CancelNfseAsync(
+        CancelNfseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (_signingCertificate is null)
+        {
+            throw new NFSeSerializationException(
+                "A signing certificate must be configured on the NFSe client to generate and sign cancellation event XML.");
+        }
+
+        var serializationResult = _serializer.SerializeSignedCancellation(
+            request,
+            new CancelNfseSerializationContext
+            {
+                Environment = _endpoints.Environment,
+                SigningCertificate = _signingCertificate,
+                ApplicationVersion = _applicationVersion
+            });
+        var normalizedAccessKey = ExtractAccessKeyFromEventRequestId(serializationResult.EventRequestId);
+
+        var payload = JsonSerializer.Serialize(
+            new SefinNationalEventRequest
+            {
+                EventRequestXmlGZipBase64 = SefinNationalCompressedDocumentEncoder.EncodeGZipBase64(serializationResult.XmlContent)
+            },
+            _jsonSerializerOptions);
+
+        var response = await _transport.SendAsync(
+            new TransportRequest
+            {
+                Method = HttpMethod.Post,
+                Path = BuildNfseEventsPath(normalizedAccessKey),
+                Content = payload,
+                ContentType = MediaTypes.ApplicationJson,
+                Accept = MediaTypes.ApplicationJson
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(response.Content))
+        {
+            var emptyPayloadMessages = response.IsSuccessStatusCode
+                ? Array.Empty<NFSeMessage>()
+                : new NFSeMessage[]
+                {
+                    new NFSeMessage
+                    {
+                        Description = $"NFS-e cancellation returned an empty payload with status code {(int)response.StatusCode}."
+                    }
+                };
+
+            return new CancelNfseResult
+            {
+                AccessKey = normalizedAccessKey,
+                Success = response.IsSuccessStatusCode,
+                EventId = serializationResult.EventRequestId,
+                SubmittedEventXml = serializationResult.XmlContent,
+                RawJson = null,
+                RawXml = null,
+                Event = null,
+                Messages = emptyPayloadMessages,
+                StatusCode = response.StatusCode
+            };
+        }
+
+        var apiEnvelope = DeserializeEventApiEnvelope(response.Content);
+        var rawXml = TryDecodeEventXml(apiEnvelope);
+        var eventDocument = rawXml is null
+            ? null
+            : new NFSeEventXmlResponseParser().Deserialize(rawXml);
+        var errorMessages = BuildMessages(apiEnvelope.Errors);
+        var standardErrorMessages = BuildMessages(apiEnvelope.Error);
+        var alertMessages = BuildMessages(apiEnvelope.Alerts);
+        var messages = errorMessages
+            .Concat(standardErrorMessages)
+            .Concat(alertMessages)
+            .ToArray();
+
+        if (response.IsSuccessStatusCode && rawXml is null && errorMessages.Count == 0 && standardErrorMessages.Count == 0)
+        {
+            messages =
+            [
+                ..messages,
+                new NFSeMessage
+                {
+                    Description = "NFS-e cancellation succeeded at HTTP level but did not return eventoXmlGZipB64."
+                }
+            ];
+        }
+
+        return new CancelNfseResult
+        {
+            AccessKey = eventDocument?.AccessKey ?? apiEnvelope.AccessKey ?? normalizedAccessKey,
+            Success = response.IsSuccessStatusCode &&
+                rawXml is not null &&
+                errorMessages.Count == 0 &&
+                standardErrorMessages.Count == 0,
+            EventId = eventDocument?.Id ?? apiEnvelope.EventRequestId ?? serializationResult.EventRequestId,
+            SubmittedEventXml = serializationResult.XmlContent,
+            RawJson = response.Content,
+            RawXml = rawXml,
+            Event = eventDocument,
+            Messages = messages,
+            StatusCode = response.StatusCode
+        };
     }
 
     public async Task<EmitDpsResponse> EmitDpsAsync(
@@ -137,6 +248,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
                 DpsId = apiEnvelope.GetResolvedDpsId() ?? serializationResult.DpsId,
                 AccessKey = document?.AccessKey ?? apiEnvelope.AccessKey,
                 SubmittedDpsXml = serializationResult.XmlContent,
+                RawJson = response.Content,
                 RawXml = rawXml,
                 Document = document,
                 JsonContent = document is null
@@ -165,6 +277,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             DpsId = apiEnvelope.GetResolvedDpsId() ?? serializationResult.DpsId,
             AccessKey = apiEnvelope.AccessKey,
             SubmittedDpsXml = serializationResult.XmlContent,
+            RawJson = response.Content,
             RawXml = null,
             Document = null,
             JsonContent = null,
@@ -212,6 +325,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         {
             AccessKey = document?.AccessKey ?? apiEnvelope.AccessKey ?? request.AccessKey,
             Success = lookupResult.Success,
+            RawJson = response.Content,
             RawXml = rawXml,
             Document = document,
             JsonContent = document is null
@@ -263,6 +377,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             DpsId = NormalizeOptionalText(apiEnvelope.GetResolvedDpsId()) ?? request.DpsId,
             AccessKey = accessKey,
             Success = response.IsSuccessStatusCode && accessKey is not null,
+            RawJson = response.Content,
             Messages = messages,
             StatusCode = response.StatusCode
         };
@@ -287,6 +402,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         {
             DpsId = request.DpsId,
             Generated = response.IsSuccessStatusCode,
+            RawJson = response.Content,
             StatusCode = response.StatusCode
         };
     }
@@ -313,6 +429,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
                 MunicipalityCode = request.MunicipalityCode,
                 IsAvailable = response.IsSuccessStatusCode,
                 JsonContent = null,
+                RawJson = null,
                 Messages = response.IsSuccessStatusCode
                     ? Array.Empty<NFSeMessage>()
                     : new NFSeMessage[]
@@ -344,6 +461,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             MunicipalityCode = request.MunicipalityCode,
             IsAvailable = response.IsSuccessStatusCode && messages.Count == 0,
             JsonContent = response.Content,
+            RawJson = response.Content,
             Messages = messages,
             StatusCode = response.StatusCode
         };
@@ -376,6 +494,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
                 CompetenceDate = request.CompetenceDate,
                 IsAvailable = response.IsSuccessStatusCode,
                 JsonContent = null,
+                RawJson = null,
                 Messages = response.IsSuccessStatusCode
                     ? Array.Empty<NFSeMessage>()
                     : new NFSeMessage[]
@@ -409,6 +528,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             CompetenceDate = request.CompetenceDate,
             IsAvailable = response.IsSuccessStatusCode && messages.Count == 0,
             JsonContent = response.Content,
+            RawJson = response.Content,
             Messages = messages,
             StatusCode = response.StatusCode
         };
@@ -420,6 +540,11 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         {
             disposableTransport.Dispose();
         }
+
+        if (_disposeSigningCertificate)
+        {
+            _signingCertificate?.Dispose();
+        }
     }
 
     private static DefaultClientDependencies CreateDefaultDependencies(
@@ -428,6 +553,10 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         HttpClient? httpClient)
     {
         var resolvedOptions = options ?? new NFSeSdkOptions();
+        var shouldDisposeCertificate = clientCertificate is null &&
+            resolvedOptions.ClientCertificate is null &&
+            !string.IsNullOrWhiteSpace(resolvedOptions.CertificateFile?.Path);
+        var resolvedCertificate = clientCertificate ?? NFSeCertificateLoader.Load(resolvedOptions);
         var endpoints = NFSeEndpointsOptions.For(resolvedOptions.Environment);
         var transport = new NFSeHttpTransport(
             endpoints,
@@ -435,14 +564,16 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             {
                 Timeout = resolvedOptions.Timeout,
                 UserAgent = resolvedOptions.UserAgent,
-                ClientCertificate = clientCertificate
+                ClientCertificate = resolvedCertificate
             },
             httpClient);
 
         return new DefaultClientDependencies(
             transport,
             new NFSeXmlSerializer(),
-            endpoints);
+            endpoints,
+            resolvedCertificate,
+            shouldDisposeCertificate);
     }
 
     private static JsonSerializerOptions CreateDefaultJsonSerializerOptions(JsonSerializerOptions? options)
@@ -488,15 +619,15 @@ public sealed class NFSeClient : INFSeClient, IDisposable
 
     private NFSeClient(
         DefaultClientDependencies dependencies,
-        X509Certificate2? signingCertificate,
         JsonSerializerOptions? jsonSerializerOptions)
         : this(
             dependencies.Transport,
             dependencies.Serializer,
             dependencies.Endpoints,
-            signingCertificate,
+            dependencies.SigningCertificate,
             jsonSerializerOptions,
-            disposeTransport: true)
+            disposeTransport: true,
+            disposeSigningCertificate: dependencies.DisposeSigningCertificate)
     {
     }
 
@@ -506,7 +637,8 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         NFSeEndpointsOptions endpoints,
         X509Certificate2? signingCertificate,
         JsonSerializerOptions? jsonSerializerOptions,
-        bool disposeTransport)
+        bool disposeTransport,
+        bool disposeSigningCertificate)
     {
         ArgumentNullException.ThrowIfNull(transport);
         ArgumentNullException.ThrowIfNull(serializer);
@@ -519,6 +651,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         _signingCertificate = signingCertificate;
         _applicationVersion = BuildApplicationVersion();
         _disposeTransport = disposeTransport;
+        _disposeSigningCertificate = disposeSigningCertificate;
     }
 
     private Contracts.Serialization.NFSeLookupDeserializationResult DeserializeLookupXml(
@@ -549,6 +682,23 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         return string.IsNullOrWhiteSpace(envelope.NfseXmlGZipBase64)
             ? null
             : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(envelope.NfseXmlGZipBase64);
+    }
+
+    private static string? TryDecodeEventXml(SefinNationalEventApiEnvelope envelope)
+    {
+        var compressedXml = envelope.EventXmlGZipBase64;
+
+        if (string.IsNullOrWhiteSpace(compressedXml) &&
+            envelope.AdditionalData is not null &&
+            envelope.AdditionalData.TryGetValue("xmlGZipB64", out var xmlGZipBase64) &&
+            xmlGZipBase64.ValueKind == JsonValueKind.String)
+        {
+            compressedXml = xmlGZipBase64.GetString();
+        }
+
+        return string.IsNullOrWhiteSpace(compressedXml)
+            ? null
+            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(compressedXml);
     }
 
     private static Contracts.Serialization.NFSeLookupDeserializationResult CreateBusinessErrorResult(
@@ -588,12 +738,94 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             : [..messages.Select(CreateMessage)];
     }
 
+    private static IReadOnlyList<NFSeMessage> BuildMessages(JsonElement? element)
+    {
+        if (element is null ||
+            element.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return Array.Empty<NFSeMessage>();
+        }
+
+        return element.Value.ValueKind switch
+        {
+            JsonValueKind.Array => [..element.Value.EnumerateArray().SelectMany(BuildMessagesFromElement)],
+            _ => BuildMessagesFromElement(element.Value)
+        };
+    }
+
+    private static IReadOnlyList<NFSeMessage> BuildMessagesFromElement(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Null ||
+            element.ValueKind == JsonValueKind.Undefined)
+        {
+            return Array.Empty<NFSeMessage>();
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var stringDescription = NormalizeOptionalText(element.GetString());
+            return stringDescription is null
+                ? Array.Empty<NFSeMessage>()
+                : [new NFSeMessage { Description = stringDescription }];
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return Array.Empty<NFSeMessage>();
+        }
+
+        var code = GetJsonString(element, "codigo") ?? GetJsonString(element, "Codigo");
+        var description = GetJsonString(element, "descricao") ??
+            GetJsonString(element, "Descricao") ??
+            GetJsonString(element, "mensagem") ??
+            GetJsonString(element, "Mensagem") ??
+            GetJsonString(element, "complemento") ??
+            GetJsonString(element, "Complemento");
+
+        return code is null && description is null
+            ? Array.Empty<NFSeMessage>()
+            : [new NFSeMessage
+            {
+                Code = code,
+                Description = description ?? "The SEFIN API returned a message without description."
+            }];
+    }
+
+    private static string? GetJsonString(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return NormalizeOptionalText(property.GetString());
+    }
+
     private string BuildDpsByIdPath(string dpsId)
     {
         return _endpoints.DpsByIdPath.Replace(
             "{id}",
             Uri.EscapeDataString(dpsId),
             StringComparison.Ordinal);
+    }
+
+    private string BuildNfseEventsPath(string accessKey)
+    {
+        return _endpoints.NfseEventsPath.Replace(
+            "{chaveAcesso}",
+            Uri.EscapeDataString(accessKey),
+            StringComparison.Ordinal);
+    }
+
+    private static string ExtractAccessKeyFromEventRequestId(string eventRequestId)
+    {
+        const int prefixLength = 3;
+        const int accessKeyLength = 50;
+
+        return eventRequestId.Length >= prefixLength + accessKeyLength
+            ? eventRequestId.Substring(prefixLength, accessKeyLength)
+            : eventRequestId;
     }
 
     private string BuildMunicipalConventionPath(string municipalityCode)
@@ -679,6 +911,14 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             "Failed to deserialize the JSON payload returned by the SEFIN API for the DPS emission.");
     }
 
+    private SefinNationalEventApiEnvelope DeserializeEventApiEnvelope(string content)
+    {
+        return DeserializeJson<SefinNationalEventApiEnvelope>(
+            content,
+            "The SEFIN API returned an empty JSON object for the NFS-e event registration.",
+            "Failed to deserialize the JSON payload returned by the SEFIN API for the NFS-e event registration.");
+    }
+
     private T DeserializeJson<T>(string content, string nullMessage, string errorMessage)
     {
         try
@@ -695,5 +935,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
     private sealed record DefaultClientDependencies(
         INFSeTransport Transport,
         INFSeSerializer Serializer,
-        NFSeEndpointsOptions Endpoints);
+        NFSeEndpointsOptions Endpoints,
+        X509Certificate2? SigningCertificate,
+        bool DisposeSigningCertificate);
 }

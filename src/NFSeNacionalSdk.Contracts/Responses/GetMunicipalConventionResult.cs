@@ -2,11 +2,17 @@ using System.Net;
 
 namespace NFSeNacionalSdk.Contracts.Responses;
 
-public sealed class GetMunicipalConventionResult
+public sealed class GetMunicipalConventionResult : INFSeResponse
 {
     public required string MunicipalityCode { get; init; }
 
     public bool IsAvailable { get; init; }
+
+    public bool Success => IsAvailable;
+
+    public string? RawXml { get; init; }
+
+    public string? RawJson { get; init; }
 
     public string? JsonContent { get; init; }
 

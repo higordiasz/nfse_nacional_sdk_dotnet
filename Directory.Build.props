@@ -12,9 +12,9 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageTags>nfse;nfs-e;dps;sefaz;sped;brasil;dotnet;sdk</PackageTags>
-        <VersionPrefix>0.1.0</VersionPrefix>
+        <VersionPrefix>0.2.0</VersionPrefix>
         <VersionSuffix>preview.1</VersionSuffix>
-        <PackageReleaseNotes>Initial preview with NFS-e lookup, synchronous DPS emission, DPS lookup, municipal convention lookup, municipal service tax-rate lookup, XML signature, and structured NFS-e parsing.</PackageReleaseNotes>
+        <PackageReleaseNotes>Preview with direct SDK factories, dependency injection registration, certificate file options, standardized response metadata, structured NFS-e parsing, and NFS-e cancellation event registration.</PackageReleaseNotes>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 

@@ -5,6 +5,10 @@ namespace NFSeNacionalSdk.Contracts.Clients;
 
 public interface INFSeClient
 {
+    Task<CancelNfseResult> CancelNfseAsync(
+        CancelNfseRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<EmitDpsResponse> EmitDpsAsync(
         EmitDpsRequest request,
         CancellationToken cancellationToken = default);

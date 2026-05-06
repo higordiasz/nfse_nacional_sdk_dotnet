@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using NFSeNacionalSdk.Contracts.Clients;
 using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Contracts.Serialization;
 using NFSeNacionalSdk.Contracts.Transport;
@@ -12,6 +14,74 @@ namespace NFSeNacionalSdk.Tests.Client;
 
 public sealed class NFSeClientTests
 {
+    [Fact]
+    public async Task CancelNfseAsync_ShouldSendSignedCompressedEventAndReturnNormalizedSuccessResult()
+    {
+        var transport = new CapturingTransport(HttpStatusCode.Created, NFSeEventFixtures.SuccessApiResponseJson);
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted),
+            certificate);
+
+        var result = await client.CancelNfseAsync(NFSeEventFixtures.CreateCancellationRequest());
+
+        Assert.True(result.Success);
+        Assert.Equal(HttpStatusCode.Created, result.StatusCode);
+        Assert.Equal(NFSeEventFixtures.AccessKey, result.AccessKey);
+        Assert.Equal(NFSeEventFixtures.EventId, result.EventId);
+        Assert.Equal(NFSeEventFixtures.SuccessEventXml, result.RawXml);
+        Assert.NotNull(result.RawJson);
+        Assert.NotNull(result.Event);
+        Assert.Empty(result.Messages);
+        Assert.Equal(NFSeEventFixtures.EventTypeCode, result.Event!.TypeCode);
+        Assert.Equal("Cancelamento de NFS-e", result.Event.Description);
+        Assert.Equal("2", result.Event.ReasonCode);
+        Assert.Equal("Servico nao prestado ao tomador conforme acordado.", result.Event.Reason);
+
+        var submittedEventXml = DecodePostedCancellationEventXml(transport.LastRequest);
+        Assert.Equal(result.SubmittedEventXml, submittedEventXml);
+        Assert.Contains($"Id=\"{NFSeEventFixtures.EventRequestId}\"", submittedEventXml, StringComparison.Ordinal);
+        Assert.Contains("<e101101>", submittedEventXml, StringComparison.Ordinal);
+        Assert.DoesNotContain("nPedRegEvento", submittedEventXml, StringComparison.Ordinal);
+        Assert.Contains("<Signature", submittedEventXml, StringComparison.OrdinalIgnoreCase);
+
+        Assert.NotNull(transport.LastRequest);
+        Assert.Equal(HttpMethod.Post, transport.LastRequest!.Method);
+        Assert.Equal($"/nfse/{NFSeEventFixtures.AccessKey}/eventos", transport.LastRequest.Path);
+        Assert.Equal("application/json", transport.LastRequest.ContentType);
+        Assert.Equal("application/json", transport.LastRequest.Accept);
+    }
+
+    [Fact]
+    public async Task CancelNfseAsync_ShouldReturnNormalizedBusinessErrorResult()
+    {
+        var transport = new CapturingTransport(HttpStatusCode.BadRequest, NFSeEventFixtures.ErrorApiResponseJson);
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted),
+            certificate);
+
+        var result = await client.CancelNfseAsync(NFSeEventFixtures.CreateCancellationRequest());
+
+        Assert.False(result.Success);
+        Assert.Equal(HttpStatusCode.BadRequest, result.StatusCode);
+        Assert.Equal(NFSeEventFixtures.AccessKey, result.AccessKey);
+        Assert.Equal(NFSeEventFixtures.EventRequestId, result.EventId);
+        Assert.Null(result.RawXml);
+        Assert.NotNull(result.RawJson);
+        Assert.Null(result.Event);
+        Assert.False(string.IsNullOrWhiteSpace(result.SubmittedEventXml));
+        Assert.Collection(result.Messages, message =>
+        {
+            Assert.Equal("E6101", message.Code);
+            Assert.Equal("Evento de cancelamento invalido.", message.Description);
+        });
+    }
+
     [Fact]
     public async Task EmitDpsAsync_ShouldSendSignedCompressedXmlAndReturnNormalizedSuccessResult()
     {
@@ -421,6 +491,53 @@ public sealed class NFSeClientTests
         });
     }
 
+    [Fact]
+    public void Factory_ShouldCreateClientFromCertificateFileOptions()
+    {
+        var certificatePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.pfx");
+
+        try
+        {
+            using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+            File.WriteAllBytes(certificatePath, certificate.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Pfx, "test"));
+
+            using var client = NFSeClientFactory.Create(options =>
+            {
+                options.Environment = NFSeEnvironment.ProductionRestricted;
+                options.CertificateFile = new NFSeCertificateFileOptions
+                {
+                    Path = certificatePath,
+                    Password = "test"
+                };
+            });
+
+            Assert.NotNull(client);
+        }
+        finally
+        {
+            if (File.Exists(certificatePath))
+            {
+                File.Delete(certificatePath);
+            }
+        }
+    }
+
+    [Fact]
+    public void AddNFSeNacionalSdk_ShouldRegisterClientForDependencyInjection()
+    {
+        var services = new ServiceCollection();
+
+        services.AddNFSeNacionalSdk(options =>
+        {
+            options.Environment = NFSeEnvironment.ProductionRestricted;
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.IsAssignableFrom<INFSeClient>(provider.GetRequiredService<INFSeClient>());
+        Assert.NotNull(provider.GetRequiredService<NFSeClient>());
+    }
+
     private static INFSeSerializer CreateSerializer() => new NFSeXmlSerializer();
 
     private static string DecodePostedDpsXml(TransportRequest? request)
@@ -430,6 +547,18 @@ public sealed class NFSeClientTests
 
         using var document = JsonDocument.Parse(request.Content!);
         var compressedXml = document.RootElement.GetProperty("dpsXmlGZipB64").GetString();
+
+        Assert.False(string.IsNullOrWhiteSpace(compressedXml));
+        return NFSeTransmissionFixtures.DecodeGZipBase64(compressedXml!);
+    }
+
+    private static string DecodePostedCancellationEventXml(TransportRequest? request)
+    {
+        Assert.NotNull(request);
+        Assert.False(string.IsNullOrWhiteSpace(request!.Content));
+
+        using var document = JsonDocument.Parse(request.Content!);
+        var compressedXml = document.RootElement.GetProperty("pedidoRegistroEventoXmlGZipB64").GetString();
 
         Assert.False(string.IsNullOrWhiteSpace(compressedXml));
         return NFSeTransmissionFixtures.DecodeGZipBase64(compressedXml!);

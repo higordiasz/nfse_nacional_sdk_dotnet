@@ -6,6 +6,7 @@ using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Contracts.Serialization;
 using NFSeNacionalSdk.Core.Enums;
 using NFSeNacionalSdk.Core.Exceptions;
+using NFSeNacionalSdk.Serialization.Xml;
 using NFSeNacionalSdk.Serialization.Xml.Lookup;
 using NFSeNacionalSdk.Serialization.Xml.Transmission.Models;
 
@@ -15,7 +16,7 @@ internal sealed class EmitDpsXmlBuilder
 {
     private const int ApplicationVersionMaxLength = 20;
 
-    private readonly EmitDpsXmlSigner _signer = new();
+    private readonly NFSeXmlSigner _signer = new();
     private readonly EmitDpsXmlSchemaValidator _schemaValidator = new();
 
     public EmitDpsSerializationResult Build(

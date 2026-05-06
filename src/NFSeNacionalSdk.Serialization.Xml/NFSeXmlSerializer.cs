@@ -4,6 +4,7 @@ using NFSeNacionalSdk.Contracts.Documents;
 using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Contracts.Serialization;
 using NFSeNacionalSdk.Core.Exceptions;
+using NFSeNacionalSdk.Serialization.Xml.Events;
 using NFSeNacionalSdk.Serialization.Xml.Lookup;
 using NFSeNacionalSdk.Serialization.Xml.Transmission;
 
@@ -13,6 +14,7 @@ public sealed class NFSeXmlSerializer : INFSeSerializer
 {
     private readonly NFSeLookupXmlResponseParser _lookupParser = new();
     private readonly EmitDpsXmlBuilder _emitDpsBuilder = new();
+    private readonly CancelNfseEventXmlBuilder _cancelNfseEventBuilder = new();
 
     public string Serialize<T>(T value)
     {
@@ -91,5 +93,12 @@ public sealed class NFSeXmlSerializer : INFSeSerializer
         EmitDpsSerializationContext context)
     {
         return _emitDpsBuilder.Build(request, context);
+    }
+
+    public CancelNfseSerializationResult SerializeSignedCancellation(
+        CancelNfseRequest request,
+        CancelNfseSerializationContext context)
+    {
+        return _cancelNfseEventBuilder.Build(request, context);
     }
 }

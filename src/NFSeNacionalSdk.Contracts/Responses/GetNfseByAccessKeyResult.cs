@@ -3,13 +3,15 @@ using NFSeNacionalSdk.Contracts.Documents;
 
 namespace NFSeNacionalSdk.Contracts.Responses;
 
-public sealed class GetNfseByAccessKeyResult
+public sealed class GetNfseByAccessKeyResult : INFSeResponse
 {
     public required string AccessKey { get; init; }
 
     public bool Success { get; init; }
 
     public string? RawXml { get; init; }
+
+    public string? RawJson { get; init; }
 
     public NFSeDocument? Document { get; init; }
 

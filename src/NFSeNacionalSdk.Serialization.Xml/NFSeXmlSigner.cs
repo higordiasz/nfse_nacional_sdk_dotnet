@@ -5,16 +5,16 @@ using System.Text;
 using System.Xml;
 using NFSeNacionalSdk.Core.Exceptions;
 
-namespace NFSeNacionalSdk.Serialization.Xml.Transmission;
+namespace NFSeNacionalSdk.Serialization.Xml;
 
-internal sealed class EmitDpsXmlSigner
+internal sealed class NFSeXmlSigner
 {
     private const string XmlDsigSha256DigestMethod = "http://www.w3.org/2001/04/xmlenc#sha256";
 
-    public string Sign(string xmlContent, string dpsId, X509Certificate2 certificate)
+    public string Sign(string xmlContent, string referenceId, X509Certificate2 certificate)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(xmlContent);
-        ArgumentException.ThrowIfNullOrWhiteSpace(dpsId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(referenceId);
         ArgumentNullException.ThrowIfNull(certificate);
 
         using var rsa = certificate.GetRSAPrivateKey();
@@ -33,7 +33,7 @@ internal sealed class EmitDpsXmlSigner
         {
             document.LoadXml(xmlContent);
 
-            var signedXml = new EmitDpsSignedXml(document)
+            var signedXml = new NFSeSignedXml(document)
             {
                 SigningKey = rsa
             };
@@ -43,7 +43,7 @@ internal sealed class EmitDpsXmlSigner
 
             var reference = new Reference
             {
-                Uri = $"#{dpsId}",
+                Uri = $"#{referenceId}",
                 DigestMethod = XmlDsigSha256DigestMethod
             };
 
@@ -61,7 +61,7 @@ internal sealed class EmitDpsXmlSigner
 
             if (document.DocumentElement is null)
             {
-                throw new NFSeSerializationException("The DPS XML document does not contain a root element to receive the signature.");
+                throw new NFSeSerializationException("The XML document does not contain a root element to receive the signature.");
             }
 
             var signatureElement = signedXml.GetXml();
@@ -75,7 +75,7 @@ internal sealed class EmitDpsXmlSigner
         }
         catch (Exception exception) when (exception is CryptographicException or XmlException)
         {
-            throw new NFSeSerializationException("Failed to generate the XMLDSIG signature for the DPS document.", exception);
+            throw new NFSeSerializationException("Failed to generate the XMLDSIG signature for the NFSe XML document.", exception);
         }
     }
 
@@ -97,7 +97,7 @@ internal sealed class EmitDpsXmlSigner
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private sealed class EmitDpsSignedXml(XmlDocument document) : SignedXml(document)
+    private sealed class NFSeSignedXml(XmlDocument document) : SignedXml(document)
     {
         public override XmlElement? GetIdElement(XmlDocument? document, string idValue)
         {

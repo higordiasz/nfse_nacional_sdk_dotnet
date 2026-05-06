@@ -2,9 +2,9 @@
 
 SDK .NET para integracao com o ambiente nacional da NFS-e, incluindo consulta de NFS-e, emissao sincronica de DPS, consulta de DPS, parametrizacao municipal, assinatura XML, validacao XSD e parse estruturado do XML retornado.
 
-> Status: `0.1.0-preview.1`
+> Status: `0.2.0-preview.1`
 >
-> A emissao e a consulta ja foram validadas em Producao Restrita. Use producao com cautela e valide as regras do municipio/prestador antes de transmitir documentos reais.
+> A emissao e a consulta ja foram validadas em Producao Restrita. O registro de evento de cancelamento foi implementado conforme schema v1.01 e endpoint oficial, mas deve ser validado com cautela em Producao Restrita antes de uso real.
 
 ## Features
 
@@ -19,9 +19,10 @@ SDK .NET para integracao com o ambiente nacional da NFS-e, incluindo consulta de
 - [x] Verificacao de DPS por `HEAD`
 - [x] Consulta de convenio municipal
 - [x] Consulta de aliquota municipal por servico
-- [ ] Eventos de NFS-e
-- [ ] Normalizacao ampliada de erros
-- [ ] Extensoes oficiais para dependency injection
+- [x] Evento de cancelamento de NFS-e
+- [x] Normalizacao base de respostas com `Success`, `StatusCode`, `Messages`, `RawXml` e `RawJson`
+- [x] Factory oficial para uso direto da DLL
+- [x] Extensoes oficiais para dependency injection
 
 ## Target Frameworks
 
@@ -47,7 +48,25 @@ Ao publicar uma versao, publique todos os pacotes gerados com a mesma versao.
 
 ## Uso Basico
 
-### Criar o cliente
+### Criar o cliente com factory
+
+```csharp
+using NFSeNacionalSdk;
+using NFSeNacionalSdk.Core.Enums;
+using NFSeNacionalSdk.Core.Options;
+
+using var client = NFSeClientFactory.Create(options =>
+{
+    options.Environment = NFSeEnvironment.ProductionRestricted;
+    options.CertificateFile = new NFSeCertificateFileOptions
+    {
+        Path = "certificado.pfx",
+        Password = "senha-do-certificado"
+    };
+});
+```
+
+Tambem e possivel informar um `X509Certificate2` ja carregado:
 
 ```csharp
 using System.Security.Cryptography.X509Certificates;
@@ -55,17 +74,42 @@ using NFSeNacionalSdk;
 using NFSeNacionalSdk.Core.Enums;
 using NFSeNacionalSdk.Core.Options;
 
-var certificate = new X509Certificate2(
+using var certificate = NFSeCertificateLoader.LoadFromPfxFile(
     "certificado.pfx",
     "senha-do-certificado",
     X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
 
-using var client = new NFSeClient(
+using var client = NFSeClientFactory.Create(
     new NFSeSdkOptions
     {
         Environment = NFSeEnvironment.ProductionRestricted
     },
     certificate);
+```
+
+### Usar com dependency injection
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using NFSeNacionalSdk;
+using NFSeNacionalSdk.Contracts.Clients;
+using NFSeNacionalSdk.Core.Enums;
+using NFSeNacionalSdk.Core.Options;
+
+var services = new ServiceCollection();
+
+services.AddNFSeNacionalSdk(options =>
+{
+    options.Environment = NFSeEnvironment.ProductionRestricted;
+    options.CertificateFile = new NFSeCertificateFileOptions
+    {
+        Path = "certificado.pfx",
+        Password = "senha-do-certificado"
+    };
+});
+
+using var provider = services.BuildServiceProvider();
+var client = provider.GetRequiredService<INFSeClient>();
 ```
 
 ### Consultar NFS-e por chave
@@ -76,7 +120,7 @@ using NFSeNacionalSdk.Contracts.Requests;
 var result = await client.GetNfseByAccessKeyAsync(new GetNfseByAccessKeyRequest
 {
     AccessKey = "<CHAVE_ACESSO_NFSE>"
-});
+}, cancellationToken);
 
 if (result.Success && result.Document is not null)
 {
@@ -133,7 +177,7 @@ var result = await client.EmitDpsAsync(new EmitDpsRequest
         TotalTaxIndicator = null,
         SimplesNationalTotalTaxRate = 2.00m
     }
-});
+}, cancellationToken);
 
 Console.WriteLine(result.Success);
 Console.WriteLine(result.AccessKey);
@@ -143,6 +187,42 @@ Console.WriteLine(result.RawXml);
 ```
 
 Para ME/EPP com `opSimpNac = 3`, `regApTribSN = 1` e ISSQN nao retido, informe `IssRate = null`. Para esse mesmo caso, use `TotalTaxIndicator = null` e informe `SimplesNationalTotalTaxRate`.
+
+### Cancelar NFS-e por evento
+
+O cancelamento registra um evento oficial para a chave informada. Teste primeiro em Producao Restrita e confirme as regras do municipio/prestador antes de usar em producao.
+
+```csharp
+using NFSeNacionalSdk.Contracts.Requests;
+using NFSeNacionalSdk.Core.Enums;
+
+var result = await client.CancelNfseAsync(new CancelNfseRequest
+{
+    AccessKey = "<CHAVE_ACESSO_NFSE>",
+    AuthorTaxId = "<CNPJ_OU_CPF_AUTOR>",
+    ReasonCode = NFSeCancellationReasonCode.ServiceNotProvided,
+    Reason = "Servico nao prestado ao tomador conforme acordado."
+}, cancellationToken);
+
+Console.WriteLine(result.Success);
+Console.WriteLine(result.StatusCode);
+Console.WriteLine(result.EventId);
+Console.WriteLine(result.SubmittedEventXml);
+Console.WriteLine(result.RawXml);
+Console.WriteLine(result.Event?.Description);
+```
+
+### Respostas padronizadas
+
+As respostas principais implementam `INFSeResponse` e expoem:
+
+- `Success`: resultado normalizado da operacao
+- `StatusCode`: status HTTP retornado pela API
+- `Messages`: erros, alertas ou mensagens de negocio
+- `RawXml`: XML bruto quando a API retornar XML compactado em base64
+- `RawJson`: JSON bruto retornado pela API
+
+Consultas e emissoes que retornam documento tambem disponibilizam objeto estruturado em `Document`. Eventos de cancelamento retornam dados estruturados em `Event`.
 
 ## Sample Console
 
@@ -189,10 +269,16 @@ Publicar no NuGet:
 dotnet nuget push "artifacts/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key <NUGET_API_KEY>
 ```
 
-Para uma versao estavel, sobrescreva a versao no pack:
+Para sobrescrever a versao no pack:
 
 ```bash
-dotnet pack --configuration Release --no-build --output artifacts/packages -p:Version=0.1.0
+dotnet pack --configuration Release --no-build --output artifacts/packages -p:Version=0.2.0
+```
+
+Para a preview `0.2.0`:
+
+```bash
+dotnet pack --configuration Release --no-build --output artifacts/packages -p:Version=0.2.0-preview.1
 ```
 
 ## Release pelo GitHub Actions
@@ -216,11 +302,11 @@ Configuracao necessaria no nuget.org:
 Publicar por tag:
 
 ```bash
-git tag v0.1.0-preview.1
-git push origin v0.1.0-preview.1
+git tag v0.2.0-preview.1
+git push origin v0.2.0-preview.1
 ```
 
-Ou execute manualmente o workflow `Release NuGet` no GitHub e informe a versao, por exemplo `0.1.0-preview.1`. Para esse modo manual, a branch usada na execucao precisa estar permitida nas regras do Environment.
+Ou execute manualmente o workflow `Release NuGet` no GitHub e informe a versao, por exemplo `0.2.0-preview.1`. Para esse modo manual, a branch usada na execucao precisa estar permitida nas regras do Environment.
 
 ## Estrutura
 
@@ -253,7 +339,7 @@ Leia [CONTRIBUTING.md](./CONTRIBUTING.md) antes de abrir issues ou pull requests
 
 Use Conventional Commits:
 
-- `feat: add nfse event registration`
+- `feat: add nfse cancellation events`
 - `fix: parse nfse taxation values`
 - `docs: update release instructions`
 - `build: add nuget package metadata`

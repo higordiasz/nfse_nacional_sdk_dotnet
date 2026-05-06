@@ -3,7 +3,7 @@ using NFSeNacionalSdk.Contracts.Documents;
 
 namespace NFSeNacionalSdk.Contracts.Responses;
 
-public sealed class EmitDpsResponse
+public sealed class EmitDpsResponse : INFSeResponse
 {
     public bool Success { get; init; }
 
@@ -14,6 +14,8 @@ public sealed class EmitDpsResponse
     public required string SubmittedDpsXml { get; init; }
 
     public string? RawXml { get; init; }
+
+    public string? RawJson { get; init; }
 
     public NFSeDocument? Document { get; init; }
 

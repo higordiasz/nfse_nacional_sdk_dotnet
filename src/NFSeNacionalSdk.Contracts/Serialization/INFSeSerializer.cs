@@ -13,4 +13,8 @@ public interface INFSeSerializer
     EmitDpsSerializationResult SerializeSignedDps(
         EmitDpsRequest request,
         EmitDpsSerializationContext context);
+
+    CancelNfseSerializationResult SerializeSignedCancellation(
+        CancelNfseRequest request,
+        CancelNfseSerializationContext context);
 }
