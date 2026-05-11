@@ -6,14 +6,14 @@ namespace NFSeNacionalSdk.SefinNational;
 internal sealed class SefinNationalMunicipalServiceParametersApiEnvelope
 {
     [JsonPropertyName("erro")]
-    public SefinNationalApiMessage? Error { get; init; }
+    public SefinNationalApiMessage? Error { get; set; }
 
     [JsonPropertyName("erros")]
-    public IReadOnlyList<SefinNationalApiMessage>? Errors { get; init; }
+    public IReadOnlyList<SefinNationalApiMessage>? Errors { get; set; }
 
     [JsonPropertyName("mensagem")]
-    public string? Message { get; init; }
+    public string? Message { get; set; }
 
     [JsonExtensionData]
-    public IDictionary<string, JsonElement>? AdditionalData { get; init; }
+    public IDictionary<string, JsonElement>? AdditionalData { get; set; }
 }

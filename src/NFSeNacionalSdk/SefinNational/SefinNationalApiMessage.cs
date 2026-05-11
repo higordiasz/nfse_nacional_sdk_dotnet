@@ -5,16 +5,16 @@ namespace NFSeNacionalSdk.SefinNational;
 internal sealed class SefinNationalApiMessage
 {
     [JsonPropertyName("mensagem")]
-    public string? Message { get; init; }
+    public string? Message { get; set; }
 
     [JsonPropertyName("codigo")]
-    public string? Code { get; init; }
+    public string? Code { get; set; }
 
     [JsonPropertyName("descricao")]
-    public string? Description { get; init; }
+    public string? Description { get; set; }
 
     [JsonPropertyName("complemento")]
-    public string? Complement { get; init; }
+    public string? Complement { get; set; }
 
     public string? GetResolvedDescription()
     {

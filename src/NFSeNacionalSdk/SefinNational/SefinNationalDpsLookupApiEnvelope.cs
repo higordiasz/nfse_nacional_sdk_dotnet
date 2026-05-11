@@ -6,28 +6,28 @@ namespace NFSeNacionalSdk.SefinNational;
 internal sealed class SefinNationalDpsLookupApiEnvelope
 {
     [JsonPropertyName("tipoAmbiente")]
-    public int? EnvironmentType { get; init; }
+    public int? EnvironmentType { get; set; }
 
     [JsonPropertyName("versaoAplicativo")]
-    public string? ApplicationVersion { get; init; }
+    public string? ApplicationVersion { get; set; }
 
     [JsonPropertyName("dataHoraProcessamento")]
-    public DateTimeOffset? ProcessedAt { get; init; }
+    public DateTimeOffset? ProcessedAt { get; set; }
 
     [JsonPropertyName("idDps")]
-    public string? DpsId { get; init; }
+    public string? DpsId { get; set; }
 
     [JsonPropertyName("chaveAcesso")]
-    public string? AccessKey { get; init; }
+    public string? AccessKey { get; set; }
 
     [JsonPropertyName("erro")]
-    public SefinNationalApiMessage? Error { get; init; }
+    public SefinNationalApiMessage? Error { get; set; }
 
     [JsonPropertyName("erros")]
-    public IReadOnlyList<SefinNationalApiMessage>? Errors { get; init; }
+    public IReadOnlyList<SefinNationalApiMessage>? Errors { get; set; }
 
     [JsonExtensionData]
-    public IDictionary<string, JsonElement>? AdditionalData { get; init; }
+    public IDictionary<string, JsonElement>? AdditionalData { get; set; }
 
     public string? GetResolvedDpsId()
     {

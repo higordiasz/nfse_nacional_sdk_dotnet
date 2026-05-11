@@ -2,7 +2,7 @@ namespace NFSeNacionalSdk.Contracts.Responses;
 
 public sealed class NFSeMessage
 {
-    public string? Code { get; init; }
+    public string? Code { get; set; }
 
-    public required string Description { get; init; }
+    public string Description { get; set; }
 }

@@ -13,15 +13,15 @@ internal sealed class NFSeXmlSigner
 
     public string Sign(string xmlContent, string referenceId, X509Certificate2 certificate)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(xmlContent);
-        ArgumentException.ThrowIfNullOrWhiteSpace(referenceId);
-        ArgumentNullException.ThrowIfNull(certificate);
+        if (string.IsNullOrWhiteSpace(xmlContent)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(xmlContent)); }
+        if (string.IsNullOrWhiteSpace(referenceId)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(referenceId)); }
+        if (certificate is null) { throw new ArgumentNullException(nameof(certificate)); }
 
         using var rsa = certificate.GetRSAPrivateKey();
         if (rsa is null)
         {
             throw new NFSeSerializationException(
-                "The signing certificate does not expose an RSA private key required for XMLDSIG.");
+                "The signing certificate does not expose an RSA private key for XMLDSIG.");
         }
 
         var document = new XmlDocument

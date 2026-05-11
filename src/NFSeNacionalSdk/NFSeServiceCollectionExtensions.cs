@@ -15,7 +15,7 @@ public static class NFSeServiceCollectionExtensions
         this IServiceCollection services,
         Action<NFSeSdkOptions>? configure = null)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        if (services is null) { throw new ArgumentNullException(nameof(services)); }
 
         var options = new NFSeSdkOptions();
         configure?.Invoke(options);
@@ -28,7 +28,8 @@ public static class NFSeServiceCollectionExtensions
         }
         else if (!string.IsNullOrWhiteSpace(options.CertificateFile?.Path))
         {
-            services.AddSingleton(_ => NFSeCertificateLoader.LoadFromPfxFile(options.CertificateFile));
+            var certificateFile = options.CertificateFile;
+            services.AddSingleton(_ => NFSeCertificateLoader.LoadFromPfxFile(certificateFile!));
         }
 
         services.AddSingleton<INFSeSerializer, NFSeXmlSerializer>();

@@ -78,7 +78,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         CancelNfseRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         if (_signingCertificate is null)
         {
@@ -140,7 +140,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             };
         }
 
-        var apiEnvelope = DeserializeEventApiEnvelope(response.Content);
+        var apiEnvelope = DeserializeEventApiEnvelope(response.Content!);
         var rawXml = TryDecodeEventXml(apiEnvelope);
         var eventDocument = rawXml is null
             ? null
@@ -186,7 +186,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         EmitDpsRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         if (_signingCertificate is null)
         {
@@ -227,7 +227,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
                 $"NFSe emission returned an empty payload with status code {(int)response.StatusCode}.");
         }
 
-        var apiEnvelope = DeserializeTransmissionApiEnvelope(response.Content);
+        var apiEnvelope = DeserializeTransmissionApiEnvelope(response.Content!);
         var rawXml = TryDecodeXml(apiEnvelope);
 
         if (rawXml is not null)
@@ -290,12 +290,11 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         GetNfseByAccessKeyRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         var path = _endpoints.NfseByAccessKeyPath.Replace(
             "{chaveAcesso}",
-            Uri.EscapeDataString(request.AccessKey),
-            StringComparison.Ordinal);
+            Uri.EscapeDataString(request.AccessKey));
 
         var response = await _transport.SendAsync(
             new TransportRequest
@@ -312,7 +311,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
                 $"NFSe consultation returned an empty payload with status code {(int)response.StatusCode}.");
         }
 
-        var apiEnvelope = DeserializeLookupApiEnvelope(response.Content);
+        var apiEnvelope = DeserializeLookupApiEnvelope(response.Content!);
         var rawXml = TryDecodeXml(apiEnvelope);
         var lookupResult = rawXml is null
             ? CreateBusinessErrorResult(apiEnvelope, response.StatusCode)
@@ -340,7 +339,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         GetDpsByIdRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         var response = await _transport.SendAsync(
             new TransportRequest
@@ -357,7 +356,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
                 $"DPS consultation returned an empty payload with status code {(int)response.StatusCode}.");
         }
 
-        var apiEnvelope = DeserializeDpsLookupApiEnvelope(response.Content);
+        var apiEnvelope = DeserializeDpsLookupApiEnvelope(response.Content!);
         var messages = BuildMessages(apiEnvelope.Errors);
 
         if (apiEnvelope.Error is not null)
@@ -387,7 +386,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         GetDpsByIdRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         var response = await _transport.SendAsync(
             new TransportRequest
@@ -411,7 +410,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         GetMunicipalConventionRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         var response = await _transport.SendAsync(
             new TransportRequest
@@ -443,7 +442,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             };
         }
 
-        var apiEnvelope = DeserializeMunicipalConventionApiEnvelope(response.Content);
+        var apiEnvelope = DeserializeMunicipalConventionApiEnvelope(response.Content!);
         var messages = BuildMessages(apiEnvelope.Errors);
 
         if (apiEnvelope.Error is not null)
@@ -453,7 +452,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
 
         if (!response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(apiEnvelope.Message))
         {
-            messages = [..messages, new NFSeMessage { Description = apiEnvelope.Message }];
+            messages = [..messages, new NFSeMessage { Description = apiEnvelope.Message! }];
         }
 
         return new GetMunicipalConventionResult
@@ -471,7 +470,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         GetMunicipalServiceParametersRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         var response = await _transport.SendAsync(
             new TransportRequest
@@ -508,7 +507,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             };
         }
 
-        var apiEnvelope = DeserializeMunicipalServiceParametersApiEnvelope(response.Content);
+        var apiEnvelope = DeserializeMunicipalServiceParametersApiEnvelope(response.Content!);
         var messages = BuildMessages(apiEnvelope.Errors);
 
         if (apiEnvelope.Error is not null)
@@ -518,7 +517,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
 
         if (!response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(apiEnvelope.Message))
         {
-            messages = [..messages, new NFSeMessage { Description = apiEnvelope.Message }];
+            messages = [..messages, new NFSeMessage { Description = apiEnvelope.Message! }];
         }
 
         return new GetMunicipalServiceParametersResult
@@ -596,7 +595,11 @@ public sealed class NFSeClient : INFSeClient, IDisposable
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
             .InformationalVersion;
 
-        version = version?.Split('+', 2)[0];
+        var metadataSeparatorIndex = version?.IndexOf('+') ?? -1;
+        if (metadataSeparatorIndex >= 0)
+        {
+            version = version?.Substring(0, metadataSeparatorIndex);
+        }
 
         if (string.IsNullOrWhiteSpace(version))
         {
@@ -614,7 +617,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
 
         return value.Length <= maxLength
             ? value
-            : value[..maxLength];
+            : value.Substring(0, maxLength);
     }
 
     private NFSeClient(
@@ -640,9 +643,9 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         bool disposeTransport,
         bool disposeSigningCertificate)
     {
-        ArgumentNullException.ThrowIfNull(transport);
-        ArgumentNullException.ThrowIfNull(serializer);
-        ArgumentNullException.ThrowIfNull(endpoints);
+        if (transport is null) { throw new ArgumentNullException(nameof(transport)); }
+        if (serializer is null) { throw new ArgumentNullException(nameof(serializer)); }
+        if (endpoints is null) { throw new ArgumentNullException(nameof(endpoints)); }
 
         _transport = transport;
         _serializer = serializer;
@@ -674,14 +677,14 @@ public sealed class NFSeClient : INFSeClient, IDisposable
     {
         return string.IsNullOrWhiteSpace(envelope.NfseXmlGZipBase64)
             ? null
-            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(envelope.NfseXmlGZipBase64);
+            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(envelope.NfseXmlGZipBase64!);
     }
 
     private static string? TryDecodeXml(SefinNationalTransmissionApiEnvelope envelope)
     {
         return string.IsNullOrWhiteSpace(envelope.NfseXmlGZipBase64)
             ? null
-            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(envelope.NfseXmlGZipBase64);
+            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(envelope.NfseXmlGZipBase64!);
     }
 
     private static string? TryDecodeEventXml(SefinNationalEventApiEnvelope envelope)
@@ -698,7 +701,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
 
         return string.IsNullOrWhiteSpace(compressedXml)
             ? null
-            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(compressedXml);
+            : SefinNationalCompressedDocumentDecoder.DecodeGZipBase64(compressedXml!);
     }
 
     private static Contracts.Serialization.NFSeLookupDeserializationResult CreateBusinessErrorResult(
@@ -806,16 +809,14 @@ public sealed class NFSeClient : INFSeClient, IDisposable
     {
         return _endpoints.DpsByIdPath.Replace(
             "{id}",
-            Uri.EscapeDataString(dpsId),
-            StringComparison.Ordinal);
+            Uri.EscapeDataString(dpsId));
     }
 
     private string BuildNfseEventsPath(string accessKey)
     {
         return _endpoints.NfseEventsPath.Replace(
             "{chaveAcesso}",
-            Uri.EscapeDataString(accessKey),
-            StringComparison.Ordinal);
+            Uri.EscapeDataString(accessKey));
     }
 
     private static string ExtractAccessKeyFromEventRequestId(string eventRequestId)
@@ -832,8 +833,7 @@ public sealed class NFSeClient : INFSeClient, IDisposable
     {
         var path = _endpoints.MunicipalParametersByConventionPath.Replace(
             "{codigoMunicipio}",
-            Uri.EscapeDataString(municipalityCode),
-            StringComparison.Ordinal);
+            Uri.EscapeDataString(municipalityCode));
 
         return new Uri(
             new Uri(_endpoints.ParametrizationBaseUrl, UriKind.Absolute),
@@ -848,16 +848,13 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         var path = _endpoints.MunicipalParametersByServiceCodePath
             .Replace(
                 "{codigoMunicipio}",
-                Uri.EscapeDataString(municipalityCode),
-                StringComparison.Ordinal)
+                Uri.EscapeDataString(municipalityCode))
             .Replace(
                 "{codigoServico}",
-                Uri.EscapeDataString(serviceCode),
-                StringComparison.Ordinal)
+                Uri.EscapeDataString(serviceCode))
             .Replace(
                 "{competencia}",
-                Uri.EscapeDataString(competenceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
-                StringComparison.Ordinal);
+                Uri.EscapeDataString(competenceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
 
         return new Uri(
             new Uri(_endpoints.ParametrizationBaseUrl, UriKind.Absolute),
@@ -932,10 +929,30 @@ public sealed class NFSeClient : INFSeClient, IDisposable
         }
     }
 
-    private sealed record DefaultClientDependencies(
-        INFSeTransport Transport,
-        INFSeSerializer Serializer,
-        NFSeEndpointsOptions Endpoints,
-        X509Certificate2? SigningCertificate,
-        bool DisposeSigningCertificate);
+    private sealed class DefaultClientDependencies
+    {
+        public DefaultClientDependencies(
+            INFSeTransport transport,
+            INFSeSerializer serializer,
+            NFSeEndpointsOptions endpoints,
+            X509Certificate2? signingCertificate,
+            bool disposeSigningCertificate)
+        {
+            Transport = transport;
+            Serializer = serializer;
+            Endpoints = endpoints;
+            SigningCertificate = signingCertificate;
+            DisposeSigningCertificate = disposeSigningCertificate;
+        }
+
+        public INFSeTransport Transport { get; }
+
+        public INFSeSerializer Serializer { get; }
+
+        public NFSeEndpointsOptions Endpoints { get; }
+
+        public X509Certificate2? SigningCertificate { get; }
+
+        public bool DisposeSigningCertificate { get; }
+    }
 }

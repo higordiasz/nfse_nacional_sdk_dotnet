@@ -4,10 +4,10 @@ public sealed class GetDpsByIdRequest
 {
     private string _dpsId = string.Empty;
 
-    public required string DpsId
+    public string DpsId
     {
         get => _dpsId;
-        init => _dpsId = NormalizeDpsId(value);
+        set => _dpsId = NormalizeDpsId(value);
     }
 
     private static string NormalizeDpsId(string value)

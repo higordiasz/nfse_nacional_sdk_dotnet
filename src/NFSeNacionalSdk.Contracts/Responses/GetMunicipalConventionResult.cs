@@ -4,19 +4,19 @@ namespace NFSeNacionalSdk.Contracts.Responses;
 
 public sealed class GetMunicipalConventionResult : INFSeResponse
 {
-    public required string MunicipalityCode { get; init; }
+    public string MunicipalityCode { get; set; }
 
-    public bool IsAvailable { get; init; }
+    public bool IsAvailable { get; set; }
 
     public bool Success => IsAvailable;
 
-    public string? RawXml { get; init; }
+    public string? RawXml { get; set; }
 
-    public string? RawJson { get; init; }
+    public string? RawJson { get; set; }
 
-    public string? JsonContent { get; init; }
+    public string? JsonContent { get; set; }
 
-    public IReadOnlyList<NFSeMessage> Messages { get; init; } = Array.Empty<NFSeMessage>();
+    public IReadOnlyList<NFSeMessage> Messages { get; set; } = Array.Empty<NFSeMessage>();
 
-    public HttpStatusCode StatusCode { get; init; }
+    public HttpStatusCode StatusCode { get; set; }
 }

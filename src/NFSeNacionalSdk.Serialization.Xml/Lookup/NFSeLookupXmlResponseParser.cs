@@ -429,7 +429,7 @@ internal sealed class NFSeLookupXmlResponseParser
         }
 
         return normalizedId.StartsWith("NFS", StringComparison.OrdinalIgnoreCase) && normalizedId.Length > 3
-            ? normalizedId[3..]
+            ? normalizedId.Substring(3)
             : normalizedId;
     }
 

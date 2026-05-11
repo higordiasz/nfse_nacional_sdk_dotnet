@@ -18,7 +18,7 @@ public sealed class NFSeXmlSerializer : INFSeSerializer
 
     public string Serialize<T>(T value)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        if (value is null) { throw new ArgumentNullException(nameof(value)); }
 
         try
         {

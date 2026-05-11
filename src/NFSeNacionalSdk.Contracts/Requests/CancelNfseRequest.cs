@@ -4,13 +4,13 @@ namespace NFSeNacionalSdk.Contracts.Requests;
 
 public sealed class CancelNfseRequest
 {
-    public required string AccessKey { get; init; }
+    public string AccessKey { get; set; }
 
-    public required string AuthorTaxId { get; init; }
+    public string AuthorTaxId { get; set; }
 
-    public NFSeCancellationReasonCode ReasonCode { get; init; } = NFSeCancellationReasonCode.Other;
+    public NFSeCancellationReasonCode ReasonCode { get; set; } = NFSeCancellationReasonCode.Other;
 
-    public required string Reason { get; init; }
+    public string Reason { get; set; }
 
-    public DateTimeOffset? EventAt { get; init; }
+    public DateTimeOffset? EventAt { get; set; }
 }

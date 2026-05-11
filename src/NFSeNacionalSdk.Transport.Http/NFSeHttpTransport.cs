@@ -18,7 +18,7 @@ public sealed class NFSeHttpTransport : INFSeTransport, IDisposable
         NFSeHttpTransportOptions? options = null,
         HttpClient? httpClient = null)
     {
-        ArgumentNullException.ThrowIfNull(endpoints);
+        if (endpoints is null) { throw new ArgumentNullException(nameof(endpoints)); }
 
         if (string.IsNullOrWhiteSpace(endpoints.BaseUrl))
         {
@@ -44,7 +44,7 @@ public sealed class NFSeHttpTransport : INFSeTransport, IDisposable
         TransportRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
 
         if (string.IsNullOrWhiteSpace(request.Path))
         {
@@ -82,9 +82,22 @@ public sealed class NFSeHttpTransport : INFSeTransport, IDisposable
                 HttpCompletionOption.ResponseContentRead,
                 cancellationToken).ConfigureAwait(false);
 
-            var content = response.Content is null
-                ? null
-                : await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            string? content;
+            if (response.Content is null)
+            {
+                content = null;
+            }
+#if NETSTANDARD2_0
+            else
+            {
+                content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            }
+#else
+            else
+            {
+                content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            }
+#endif
 
             return new TransportResponse
             {

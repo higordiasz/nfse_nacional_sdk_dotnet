@@ -5,19 +5,19 @@ public sealed class GetMunicipalServiceParametersRequest
     private string _municipalityCode = string.Empty;
     private string _serviceCode = string.Empty;
 
-    public required string MunicipalityCode
+    public string MunicipalityCode
     {
         get => _municipalityCode;
-        init => _municipalityCode = NormalizeMunicipalityCode(value);
+        set => _municipalityCode = NormalizeMunicipalityCode(value);
     }
 
-    public required string ServiceCode
+    public string ServiceCode
     {
         get => _serviceCode;
-        init => _serviceCode = NormalizeServiceCode(value);
+        set => _serviceCode = NormalizeServiceCode(value);
     }
 
-    public DateOnly CompetenceDate { get; init; } = DateOnly.FromDateTime(DateTime.Today);
+    public DateOnly CompetenceDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
 
     private static string NormalizeMunicipalityCode(string value)
     {
@@ -55,15 +55,13 @@ public sealed class GetMunicipalServiceParametersRequest
                 nameof(value));
         }
 
-        return string.Create(12, digits, static (destination, source) =>
-        {
-            source.AsSpan(0, 2).CopyTo(destination);
-            destination[2] = '.';
-            source.AsSpan(2, 2).CopyTo(destination[3..]);
-            destination[5] = '.';
-            source.AsSpan(4, 2).CopyTo(destination[6..]);
-            destination[8] = '.';
-            source.AsSpan(6, 3).CopyTo(destination[9..]);
-        });
+        return string.Concat(
+            digits.Substring(0, 2),
+            ".",
+            digits.Substring(2, 2),
+            ".",
+            digits.Substring(4, 2),
+            ".",
+            digits.Substring(6, 3));
     }
 }

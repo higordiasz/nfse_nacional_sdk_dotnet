@@ -4,9 +4,9 @@ namespace NFSeNacionalSdk.Transport.Http;
 
 public sealed class NFSeHttpTransportOptions
 {
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(100);
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(100);
 
-    public string UserAgent { get; init; } = "NFSeNacionalSdk";
+    public string UserAgent { get; set; } = "NFSeNacionalSdk";
 
-    public X509Certificate2? ClientCertificate { get; init; }
+    public X509Certificate2? ClientCertificate { get; set; }
 }

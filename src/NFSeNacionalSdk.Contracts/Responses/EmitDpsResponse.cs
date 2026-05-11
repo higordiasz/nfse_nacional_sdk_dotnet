@@ -5,23 +5,23 @@ namespace NFSeNacionalSdk.Contracts.Responses;
 
 public sealed class EmitDpsResponse : INFSeResponse
 {
-    public bool Success { get; init; }
+    public bool Success { get; set; }
 
-    public string? DpsId { get; init; }
+    public string? DpsId { get; set; }
 
-    public string? AccessKey { get; init; }
+    public string? AccessKey { get; set; }
 
-    public required string SubmittedDpsXml { get; init; }
+    public string SubmittedDpsXml { get; set; }
 
-    public string? RawXml { get; init; }
+    public string? RawXml { get; set; }
 
-    public string? RawJson { get; init; }
+    public string? RawJson { get; set; }
 
-    public NFSeDocument? Document { get; init; }
+    public NFSeDocument? Document { get; set; }
 
-    public string? JsonContent { get; init; }
+    public string? JsonContent { get; set; }
 
-    public IReadOnlyList<NFSeMessage> Messages { get; init; } = Array.Empty<NFSeMessage>();
+    public IReadOnlyList<NFSeMessage> Messages { get; set; } = Array.Empty<NFSeMessage>();
 
-    public HttpStatusCode StatusCode { get; init; }
+    public HttpStatusCode StatusCode { get; set; }
 }

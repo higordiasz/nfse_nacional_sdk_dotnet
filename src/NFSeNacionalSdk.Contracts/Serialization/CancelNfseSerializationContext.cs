@@ -5,9 +5,9 @@ namespace NFSeNacionalSdk.Contracts.Serialization;
 
 public sealed class CancelNfseSerializationContext
 {
-    public NFSeEnvironment Environment { get; init; }
+    public NFSeEnvironment Environment { get; set; }
 
-    public required X509Certificate2 SigningCertificate { get; init; }
+    public X509Certificate2 SigningCertificate { get; set; }
 
-    public string? ApplicationVersion { get; init; }
+    public string? ApplicationVersion { get; set; }
 }

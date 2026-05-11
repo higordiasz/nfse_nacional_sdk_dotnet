@@ -7,7 +7,7 @@ public static class NFSeCertificateLoader
 {
     public static X509Certificate2? Load(NFSeSdkOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        if (options is null) { throw new ArgumentNullException(nameof(options)); }
 
         if (options.ClientCertificate is not null)
         {
@@ -21,15 +21,16 @@ public static class NFSeCertificateLoader
 
     public static X509Certificate2 LoadFromPfxFile(NFSeCertificateFileOptions options)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        if (options is null) { throw new ArgumentNullException(nameof(options)); }
 
-        if (string.IsNullOrWhiteSpace(options.Path))
+        var path = options.Path;
+        if (string.IsNullOrWhiteSpace(path))
         {
             throw new ArgumentException("Certificate file path must be informed.", nameof(options));
         }
 
         return LoadFromPfxFile(
-            options.Path,
+            path!,
             options.Password,
             options.StorageFlags);
     }
@@ -42,7 +43,7 @@ public static class NFSeCertificateLoader
             X509KeyStorageFlags.PersistKeySet |
             X509KeyStorageFlags.Exportable)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (string.IsNullOrWhiteSpace(path)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(path)); }
 
 #if NET9_0_OR_GREATER
         return System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadPkcs12FromFile(

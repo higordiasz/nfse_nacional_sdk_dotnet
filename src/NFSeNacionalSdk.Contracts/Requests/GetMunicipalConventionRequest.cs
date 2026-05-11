@@ -4,10 +4,10 @@ public sealed class GetMunicipalConventionRequest
 {
     private string _municipalityCode = string.Empty;
 
-    public required string MunicipalityCode
+    public string MunicipalityCode
     {
         get => _municipalityCode;
-        init => _municipalityCode = NormalizeMunicipalityCode(value);
+        set => _municipalityCode = NormalizeMunicipalityCode(value);
     }
 
     private static string NormalizeMunicipalityCode(string value)

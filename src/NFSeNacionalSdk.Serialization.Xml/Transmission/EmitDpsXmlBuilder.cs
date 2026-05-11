@@ -23,8 +23,8 @@ internal sealed class EmitDpsXmlBuilder
         EmitDpsRequest request,
         EmitDpsSerializationContext context)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(context);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
+        if (context is null) { throw new ArgumentNullException(nameof(context)); }
 
         if (context.SigningCertificate is null)
         {
@@ -78,7 +78,7 @@ internal sealed class EmitDpsXmlBuilder
 
     private static EmitDpsProviderXml BuildProvider(EmitDpsProvider provider, NormalizedTaxId taxId)
     {
-        ArgumentNullException.ThrowIfNull(provider);
+        if (provider is null) { throw new ArgumentNullException(nameof(provider)); }
 
         var providerXml = new EmitDpsProviderXml
         {
@@ -103,7 +103,7 @@ internal sealed class EmitDpsXmlBuilder
 
     private static EmitDpsPersonXml BuildRecipient(EmitDpsRecipient recipient)
     {
-        ArgumentNullException.ThrowIfNull(recipient);
+        if (recipient is null) { throw new ArgumentNullException(nameof(recipient)); }
 
         var taxId = NormalizeTaxId(recipient.TaxId, nameof(recipient.TaxId));
         var recipientXml = new EmitDpsPersonXml
@@ -121,7 +121,7 @@ internal sealed class EmitDpsXmlBuilder
 
     private static EmitDpsAddressXml BuildAddress(EmitDpsAddress address)
     {
-        ArgumentNullException.ThrowIfNull(address);
+        if (address is null) { throw new ArgumentNullException(nameof(address)); }
 
         return new EmitDpsAddressXml
         {
@@ -139,7 +139,7 @@ internal sealed class EmitDpsXmlBuilder
 
     private static EmitDpsServiceXml BuildService(EmitDpsService service, string defaultMunicipalityCode)
     {
-        ArgumentNullException.ThrowIfNull(service);
+        if (service is null) { throw new ArgumentNullException(nameof(service)); }
 
         return new EmitDpsServiceXml
         {
@@ -165,9 +165,9 @@ internal sealed class EmitDpsXmlBuilder
         EmitDpsProvider provider,
         EmitDpsTaxation taxation)
     {
-        ArgumentNullException.ThrowIfNull(service);
-        ArgumentNullException.ThrowIfNull(provider);
-        ArgumentNullException.ThrowIfNull(taxation);
+        if (service is null) { throw new ArgumentNullException(nameof(service)); }
+        if (provider is null) { throw new ArgumentNullException(nameof(provider)); }
+        if (taxation is null) { throw new ArgumentNullException(nameof(taxation)); }
 
         if (service.Amount <= 0)
         {
@@ -315,18 +315,7 @@ internal sealed class EmitDpsXmlBuilder
         var paddedSeries = series.PadLeft(5, '0');
         var paddedNumber = number.PadLeft(15, '0');
 
-        return string.Create(
-            45,
-            (municipalityCode, providerTaxId, paddedTaxId, paddedSeries, paddedNumber),
-            static (span, state) =>
-            {
-                "DPS".AsSpan().CopyTo(span);
-                state.municipalityCode.AsSpan().CopyTo(span[3..]);
-                state.providerTaxId.TypeCode.AsSpan().CopyTo(span[10..]);
-                state.paddedTaxId.AsSpan().CopyTo(span[11..]);
-                state.paddedSeries.AsSpan().CopyTo(span[25..]);
-                state.paddedNumber.AsSpan().CopyTo(span[30..]);
-            });
+        return string.Concat("DPS", municipalityCode, providerTaxId.TypeCode, paddedTaxId, paddedSeries, paddedNumber);
     }
 
     private static void ApplyTaxId(EmitDpsProviderXml destination, NormalizedTaxId taxId)
@@ -486,8 +475,22 @@ internal sealed class EmitDpsXmlBuilder
 
         return normalized.Length <= ApplicationVersionMaxLength
             ? normalized
-            : normalized[..ApplicationVersionMaxLength];
+            : normalized.Substring(0, ApplicationVersionMaxLength);
     }
 
-    private readonly record struct NormalizedTaxId(string Digits, bool IsCnpj, string TypeCode);
+    private readonly struct NormalizedTaxId
+    {
+        public NormalizedTaxId(string digits, bool isCnpj, string typeCode)
+        {
+            Digits = digits;
+            IsCnpj = isCnpj;
+            TypeCode = typeCode;
+        }
+
+        public string Digits { get; }
+
+        public bool IsCnpj { get; }
+
+        public string TypeCode { get; }
+    }
 }

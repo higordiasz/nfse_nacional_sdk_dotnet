@@ -2,7 +2,7 @@ namespace NFSeNacionalSdk.Contracts.Serialization;
 
 public sealed class EmitDpsSerializationResult
 {
-    public required string DpsId { get; init; }
+    public string DpsId { get; set; }
 
-    public required string XmlContent { get; init; }
+    public string XmlContent { get; set; }
 }

@@ -2,7 +2,7 @@ namespace NFSeNacionalSdk.Contracts.Serialization;
 
 public sealed class CancelNfseSerializationResult
 {
-    public required string EventRequestId { get; init; }
+    public string EventRequestId { get; set; }
 
-    public required string XmlContent { get; init; }
+    public string XmlContent { get; set; }
 }

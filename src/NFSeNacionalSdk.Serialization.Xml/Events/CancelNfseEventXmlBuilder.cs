@@ -25,8 +25,8 @@ internal sealed class CancelNfseEventXmlBuilder
         CancelNfseRequest request,
         CancelNfseSerializationContext context)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(context);
+        if (request is null) { throw new ArgumentNullException(nameof(request)); }
+        if (context is null) { throw new ArgumentNullException(nameof(context)); }
 
         if (context.SigningCertificate is null)
         {
@@ -162,8 +162,19 @@ internal sealed class CancelNfseEventXmlBuilder
 
         return normalized.Length <= ApplicationVersionMaxLength
             ? normalized
-            : normalized[..ApplicationVersionMaxLength];
+            : normalized.Substring(0, ApplicationVersionMaxLength);
     }
 
-    private readonly record struct NormalizedTaxId(string Digits, bool IsCnpj);
+    private readonly struct NormalizedTaxId
+    {
+        public NormalizedTaxId(string digits, bool isCnpj)
+        {
+            Digits = digits;
+            IsCnpj = isCnpj;
+        }
+
+        public string Digits { get; }
+
+        public bool IsCnpj { get; }
+    }
 }

@@ -7,37 +7,37 @@ namespace NFSeNacionalSdk.Serialization.Xml.Events.Models;
 public sealed class CancelNfseEventEnvelopeXml
 {
     [XmlAttribute("versao")]
-    public string Version { get; init; } = "1.01";
+    public string Version { get; set; } = "1.01";
 
     [XmlElement("infPedReg")]
-    public required CancelNfseEventInfoXml Info { get; init; }
+    public CancelNfseEventInfoXml Info { get; set; }
 }
 
 public sealed class CancelNfseEventInfoXml
 {
     [XmlAttribute("Id")]
-    public required string Id { get; init; }
+    public string Id { get; set; }
 
     [XmlElement("tpAmb")]
-    public required string EnvironmentType { get; init; }
+    public string EnvironmentType { get; set; }
 
     [XmlElement("verAplic")]
-    public required string ApplicationVersion { get; init; }
+    public string ApplicationVersion { get; set; }
 
     [XmlElement("dhEvento")]
-    public required string EventAt { get; init; }
+    public string EventAt { get; set; }
 
     [XmlElement("CNPJAutor")]
-    public string? AuthorCnpj { get; init; }
+    public string? AuthorCnpj { get; set; }
 
     [XmlElement("CPFAutor")]
-    public string? AuthorCpf { get; init; }
+    public string? AuthorCpf { get; set; }
 
     [XmlElement("chNFSe")]
-    public required string AccessKey { get; init; }
+    public string AccessKey { get; set; }
 
     [XmlElement("e101101")]
-    public required CancelNfseEventDetailXml Cancellation { get; init; }
+    public CancelNfseEventDetailXml Cancellation { get; set; }
 
     public bool ShouldSerializeAuthorCnpj() => AuthorCnpj is not null;
 
@@ -47,11 +47,11 @@ public sealed class CancelNfseEventInfoXml
 public sealed class CancelNfseEventDetailXml
 {
     [XmlElement("xDesc")]
-    public string Description { get; init; } = "Cancelamento de NFS-e";
+    public string Description { get; set; } = "Cancelamento de NFS-e";
 
     [XmlElement("cMotivo")]
-    public required string ReasonCode { get; init; }
+    public string ReasonCode { get; set; }
 
     [XmlElement("xMotivo")]
-    public required string Reason { get; init; }
+    public string Reason { get; set; }
 }

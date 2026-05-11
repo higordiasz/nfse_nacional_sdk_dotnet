@@ -26,8 +26,11 @@ SDK .NET para integracao com o ambiente nacional da NFS-e, incluindo consulta de
 
 ## Target Frameworks
 
+- `netstandard2.0`
 - `net8.0`
 - `net10.0`
+
+O target `netstandard2.0` permite consumir o SDK em projetos .NET Framework, incluindo .NET Framework 4.6.2. Quando for possivel escolher, .NET Framework 4.7.2 ou superior tende a reduzir problemas de dependencias transitivas e binding redirects, mas o pacote tambem publica assets compativeis com 4.6.2.
 
 ## Pacotes
 
@@ -110,6 +113,53 @@ services.AddNFSeNacionalSdk(options =>
 
 using var provider = services.BuildServiceProvider();
 var client = provider.GetRequiredService<INFSeClient>();
+```
+
+### Usar em VB.NET / .NET Framework 4.6.2
+
+Em projetos legados, instale o pacote NuGet `NFSeNacionalSdk` no projeto .NET Framework. O NuGet deve restaurar tambem os pacotes transitivos necessarios para `netstandard2.0`. Se o projeto usar `packages.config`, habilite ou gere binding redirects quando o Visual Studio solicitar.
+
+Exemplo em VB.NET:
+
+```vbnet
+Imports NFSeNacionalSdk
+Imports NFSeNacionalSdk.Contracts.Requests
+Imports NFSeNacionalSdk.Core.Enums
+Imports NFSeNacionalSdk.Core.Options
+
+Dim client = NFSeClientFactory.Create(
+    Sub(options)
+        options.Environment = NFSeEnvironment.ProductionRestricted
+        options.CertificateFile = New NFSeCertificateFileOptions With {
+            .Path = "C:\certificados\certificado.pfx",
+            .Password = "senha-do-certificado"
+        }
+    End Sub)
+
+Dim request = New GetNfseByAccessKeyRequest With {
+    .AccessKey = "<CHAVE_ACESSO_NFSE>"
+}
+
+Dim result = client.GetNfseByAccessKeyAsync(request).GetAwaiter().GetResult()
+
+If result.Success AndAlso result.Document IsNot Nothing Then
+    Console.WriteLine(result.Document.Number)
+    Console.WriteLine(result.RawXml)
+End If
+
+client.Dispose()
+```
+
+Para emissao, `DateOnly` tambem fica disponivel no target `netstandard2.0` pelo proprio pacote de contratos:
+
+```vbnet
+Dim emissao = New EmitDpsRequest With {
+    .Series = "1",
+    .Number = "1",
+    .CompetenceDate = New DateOnly(2026, 4, 29),
+    .IssuedAt = DateTimeOffset.Now,
+    .MunicipalityCode = "3201506"
+}
 ```
 
 ### Consultar NFS-e por chave

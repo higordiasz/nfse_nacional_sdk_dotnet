@@ -4,11 +4,11 @@ namespace NFSeNacionalSdk.Core.Options;
 
 public sealed class NFSeEndpointsOptions
 {
-    public NFSeEnvironment Environment { get; init; }
+    public NFSeEnvironment Environment { get; set; }
 
-    public string BaseUrl { get; init; } = string.Empty;
+    public string BaseUrl { get; set; } = string.Empty;
 
-    public string ParametrizationBaseUrl { get; init; } = string.Empty;
+    public string ParametrizationBaseUrl { get; set; } = string.Empty;
 
     public string MunicipalParametersByConventionPath => "/{codigoMunicipio}/convenio";
     public string MunicipalParametersByServiceCodePath => "/{codigoMunicipio}/{codigoServico}/{competencia}/aliquota";

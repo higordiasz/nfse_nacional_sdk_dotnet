@@ -14,7 +14,7 @@
         <PackageTags>nfse;nfs-e;dps;sefaz;sped;brasil;dotnet;sdk</PackageTags>
         <VersionPrefix>0.2.0</VersionPrefix>
         <VersionSuffix>preview.1</VersionSuffix>
-        <PackageReleaseNotes>Preview with direct SDK factories, dependency injection registration, certificate file options, standardized response metadata, structured NFS-e parsing, and NFS-e cancellation event registration.</PackageReleaseNotes>
+        <PackageReleaseNotes>Preview with netstandard2.0 compatibility for .NET Framework consumers, direct SDK factories, dependency injection registration, certificate file options, standardized response metadata, structured NFS-e parsing, and NFS-e cancellation event registration.</PackageReleaseNotes>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 

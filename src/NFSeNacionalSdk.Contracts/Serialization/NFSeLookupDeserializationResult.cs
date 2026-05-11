@@ -5,9 +5,9 @@ namespace NFSeNacionalSdk.Contracts.Serialization;
 
 public sealed class NFSeLookupDeserializationResult
 {
-    public bool Success { get; init; }
+    public bool Success { get; set; }
 
-    public NFSeDocument? Document { get; init; }
+    public NFSeDocument? Document { get; set; }
 
-    public IReadOnlyList<NFSeMessage> Messages { get; init; } = Array.Empty<NFSeMessage>();
+    public IReadOnlyList<NFSeMessage> Messages { get; set; } = Array.Empty<NFSeMessage>();
 }

@@ -4,10 +4,10 @@ public sealed class GetNfseByAccessKeyRequest
 {
     private string _accessKey = string.Empty;
 
-    public required string AccessKey
+    public string AccessKey
     {
         get => _accessKey;
-        init => _accessKey = NormalizeAccessKey(value);
+        set => _accessKey = NormalizeAccessKey(value);
     }
 
     private static string NormalizeAccessKey(string value)

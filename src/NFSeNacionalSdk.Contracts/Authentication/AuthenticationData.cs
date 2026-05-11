@@ -2,9 +2,9 @@ namespace NFSeNacionalSdk.Contracts.Authentication;
 
 public sealed class AuthenticationData
 {
-    public string? BearerToken { get; init; }
+    public string? BearerToken { get; set; }
 
-    public string? ApiKey { get; init; }
+    public string? ApiKey { get; set; }
 
-    public IDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
+    public IDictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
 }

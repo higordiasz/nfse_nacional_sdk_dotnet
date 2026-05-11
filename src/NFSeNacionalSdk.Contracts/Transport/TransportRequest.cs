@@ -4,15 +4,15 @@ namespace NFSeNacionalSdk.Contracts.Transport;
 
 public sealed class TransportRequest
 {
-    public HttpMethod Method { get; init; } = HttpMethod.Get;
+    public HttpMethod Method { get; set; } = HttpMethod.Get;
 
-    public string Path { get; init; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
 
-    public string? Content { get; init; }
+    public string? Content { get; set; }
 
-    public string? ContentType { get; init; }
+    public string? ContentType { get; set; }
 
-    public string? Accept { get; init; }
+    public string? Accept { get; set; }
 
-    public IDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
+    public IDictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
 }

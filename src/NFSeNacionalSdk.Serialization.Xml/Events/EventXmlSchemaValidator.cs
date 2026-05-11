@@ -18,8 +18,8 @@ internal sealed class EventXmlSchemaValidator
 
     public EventXmlSchemaValidator(string rootSchemaFileName, string documentName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(rootSchemaFileName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(documentName);
+        if (string.IsNullOrWhiteSpace(rootSchemaFileName)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(rootSchemaFileName)); }
+        if (string.IsNullOrWhiteSpace(documentName)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(documentName)); }
 
         _schemaSet = new Lazy<XmlSchemaSet>(
             () => CreateSchemaSet(rootSchemaFileName),

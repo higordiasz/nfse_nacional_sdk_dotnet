@@ -22,7 +22,7 @@ public static class NFSeClientFactory
         HttpClient? httpClient = null,
         JsonSerializerOptions? jsonSerializerOptions = null)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        if (options is null) { throw new ArgumentNullException(nameof(options)); }
 
         return new NFSeClient(
             options,
@@ -37,8 +37,8 @@ public static class NFSeClientFactory
         HttpClient? httpClient = null,
         JsonSerializerOptions? jsonSerializerOptions = null)
     {
-        ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(certificate);
+        if (options is null) { throw new ArgumentNullException(nameof(options)); }
+        if (certificate is null) { throw new ArgumentNullException(nameof(certificate)); }
 
         return new NFSeClient(
             options,

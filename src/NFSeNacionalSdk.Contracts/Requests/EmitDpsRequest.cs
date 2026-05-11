@@ -4,110 +4,110 @@ namespace NFSeNacionalSdk.Contracts.Requests;
 
 public sealed class EmitDpsRequest
 {
-    public required string Series { get; init; }
+    public string Series { get; set; }
 
-    public required string Number { get; init; }
+    public string Number { get; set; }
 
-    public required DateOnly CompetenceDate { get; init; }
+    public DateOnly CompetenceDate { get; set; }
 
-    public required DateTimeOffset IssuedAt { get; init; }
+    public DateTimeOffset IssuedAt { get; set; }
 
-    public required string MunicipalityCode { get; init; }
+    public string MunicipalityCode { get; set; }
 
-    public NFSeDpsEmitterType EmitterType { get; init; } = NFSeDpsEmitterType.Provider;
+    public NFSeDpsEmitterType EmitterType { get; set; } = NFSeDpsEmitterType.Provider;
 
-    public required EmitDpsProvider Provider { get; init; }
+    public EmitDpsProvider Provider { get; set; }
 
-    public EmitDpsRecipient? Recipient { get; init; }
+    public EmitDpsRecipient? Recipient { get; set; }
 
-    public required EmitDpsService Service { get; init; }
+    public EmitDpsService Service { get; set; }
 
-    public required EmitDpsTaxation Taxation { get; init; }
+    public EmitDpsTaxation Taxation { get; set; }
 }
 
 public sealed class EmitDpsProvider
 {
-    public required string TaxId { get; init; }
+    public string TaxId { get; set; }
 
-    public string? MunicipalRegistration { get; init; }
+    public string? MunicipalRegistration { get; set; }
 
-    public string? Name { get; init; }
+    public string? Name { get; set; }
 
-    public EmitDpsAddress? Address { get; init; }
+    public EmitDpsAddress? Address { get; set; }
 
-    public string? Phone { get; init; }
+    public string? Phone { get; set; }
 
-    public string? Email { get; init; }
+    public string? Email { get; set; }
 
-    public NFSeSimplesNationalOption SimplesNationalOption { get; init; }
+    public NFSeSimplesNationalOption SimplesNationalOption { get; set; }
 
-    public NFSeSimplifiedNationalTaxRegime? SimplifiedNationalTaxRegime { get; init; }
+    public NFSeSimplifiedNationalTaxRegime? SimplifiedNationalTaxRegime { get; set; }
 
-    public NFSeSpecialTaxRegime SpecialTaxRegime { get; init; } = NFSeSpecialTaxRegime.None;
+    public NFSeSpecialTaxRegime SpecialTaxRegime { get; set; } = NFSeSpecialTaxRegime.None;
 }
 
 public sealed class EmitDpsRecipient
 {
-    public required string TaxId { get; init; }
+    public string TaxId { get; set; }
 
-    public required string Name { get; init; }
+    public string Name { get; set; }
 
-    public string? MunicipalRegistration { get; init; }
+    public string? MunicipalRegistration { get; set; }
 
-    public EmitDpsAddress? Address { get; init; }
+    public EmitDpsAddress? Address { get; set; }
 
-    public string? Phone { get; init; }
+    public string? Phone { get; set; }
 
-    public string? Email { get; init; }
+    public string? Email { get; set; }
 }
 
 public sealed class EmitDpsAddress
 {
-    public required string MunicipalityCode { get; init; }
+    public string MunicipalityCode { get; set; }
 
-    public required string ZipCode { get; init; }
+    public string ZipCode { get; set; }
 
-    public required string Street { get; init; }
+    public string Street { get; set; }
 
-    public required string Number { get; init; }
+    public string Number { get; set; }
 
-    public string? Complement { get; init; }
+    public string? Complement { get; set; }
 
-    public required string Neighborhood { get; init; }
+    public string Neighborhood { get; set; }
 }
 
 public sealed class EmitDpsService
 {
-    public string? ServiceLocationMunicipalityCode { get; init; }
+    public string? ServiceLocationMunicipalityCode { get; set; }
 
-    public required string NationalTaxationCode { get; init; }
+    public string NationalTaxationCode { get; set; }
 
-    public string? MunicipalTaxationCode { get; init; }
+    public string? MunicipalTaxationCode { get; set; }
 
-    public required string Description { get; init; }
+    public string Description { get; set; }
 
-    public string? NationalClassificationCode { get; init; }
+    public string? NationalClassificationCode { get; set; }
 
-    public string? InternalCode { get; init; }
+    public string? InternalCode { get; set; }
 
-    public required decimal Amount { get; init; }
+    public decimal Amount { get; set; }
 
-    public decimal? AmountReceivedByIntermediary { get; init; }
+    public decimal? AmountReceivedByIntermediary { get; set; }
 
-    public decimal? UnconditionalDiscountAmount { get; init; }
+    public decimal? UnconditionalDiscountAmount { get; set; }
 
-    public decimal? ConditionalDiscountAmount { get; init; }
+    public decimal? ConditionalDiscountAmount { get; set; }
 }
 
 public sealed class EmitDpsTaxation
 {
-    public NFSeIssTaxationType IssTaxationType { get; init; } = NFSeIssTaxationType.TaxableOperation;
+    public NFSeIssTaxationType IssTaxationType { get; set; } = NFSeIssTaxationType.TaxableOperation;
 
-    public NFSeIssWithholdingType IssWithholdingType { get; init; } = NFSeIssWithholdingType.NotWithheld;
+    public NFSeIssWithholdingType IssWithholdingType { get; set; } = NFSeIssWithholdingType.NotWithheld;
 
-    public decimal? IssRate { get; init; }
+    public decimal? IssRate { get; set; }
 
-    public NFSeTotalTaxIndicator? TotalTaxIndicator { get; init; } = NFSeTotalTaxIndicator.NotInformed;
+    public NFSeTotalTaxIndicator? TotalTaxIndicator { get; set; } = NFSeTotalTaxIndicator.NotInformed;
 
-    public decimal? SimplesNationalTotalTaxRate { get; init; }
+    public decimal? SimplesNationalTotalTaxRate { get; set; }
 }
