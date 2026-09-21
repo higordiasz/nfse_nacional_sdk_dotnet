@@ -1375,7 +1375,10 @@ static ClientContext? CreateClient(SampleConfiguration configuration)
             new NFSeSdkOptions
             {
                 Environment = configuration.Environment,
-                UserAgent = "NFSeNacionalSdk.Samples.Console"
+                LayoutProfile = NFSeLayoutDefaults.Current,
+                UserAgent = "NFSeNacionalSdk.Samples.Console",
+                ApplicationName = "NFSeSample",
+                ApplicationVersion = "1.0"
             },
             certificate);
 

@@ -41,6 +41,32 @@
         "issWithholdingType": 1,
         "issRate": 3.0,
         "totalTaxIndicator": 0,
-        "simplesNationalTotalTaxRate": null
+        "simplesNationalTotalTaxRate": null,
+        "federal": {
+            "pisCofins": {
+                "taxStatusCode": "01",
+                "calculationBase": 1.0,
+                "pisRate": 0.65,
+                "cofinsRate": 3.0,
+                "pisAmount": 0.01,
+                "cofinsAmount": 0.03,
+                "withholdingType": 0
+            },
+            "socialSecurityRetentionAmount": null,
+            "incomeTaxRetentionAmount": null,
+            "socialContributionRetentionAmount": null
+        },
+        "ibsCbs": {
+            "purpose": 0,
+            "isFinalConsumer": false,
+            "operationIndicatorCode": "010101",
+            "operationTypeCode": null,
+            "destinationIndicator": 0,
+            "taxStatusCode": "000",
+            "taxClassificationCode": "000001",
+            "presumedCreditCode": null,
+            "regularTaxation": null,
+            "deferral": null
+        }
     }
 }

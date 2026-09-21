@@ -4,7 +4,7 @@ SDK .NET para integracao com o ambiente nacional da NFS-e, incluindo consulta de
 
 > Status: `0.2.0-preview.1`
 >
-> A emissao e a consulta ja foram validadas em Producao Restrita. O registro de evento de cancelamento foi implementado conforme schema v1.01 e endpoint oficial, mas deve ser validado com cautela em Producao Restrita antes de uso real.
+> Baseline tecnico revisado em setembro de 2026. O XML oficial continua em `1.01`; o perfil atual combina NT 004, `tpRetPisCofins` da NT 007, grupos RTC/IBS/CBS e CNPJ alfanumerico. A NT 009 nao esta implementada porque a pagina oficial informa que ela ainda nao foi implantada e nao possui cronograma.
 
 ## Features
 
@@ -23,6 +23,26 @@ SDK .NET para integracao com o ambiente nacional da NFS-e, incluindo consulta de
 - [x] Normalizacao base de respostas com `Success`, `StatusCode`, `Messages`, `RawXml` e `RawJson`
 - [x] Factory oficial para uso direto da DLL
 - [x] Extensoes oficiais para dependency injection
+- [x] Perfis de leiaute imutaveis, com bundle XSD oficial por revisao
+- [x] CNPJ numerico e alfanumerico com validacao de digitos verificadores
+- [x] Tributacao federal, PIS/COFINS e grupos RTC/IBS/CBS da revisao de julho de 2026
+- [x] Consulta GET de eventos, por chave, tipo e sequencia
+- [x] Parametrizacao municipal tipada, preservando `RawJson`
+- [x] Certificados separados para mTLS e assinatura XML
+- [x] Validacao XSD de XML recebido (sem confundir com verificacao de confianca da assinatura)
+
+## Versionamento de Layouts / Notas Tecnicas
+
+`NFSeSdkOptions.LayoutProfile` seleciona uma revisao imutavel. Nao use o numero do XML como proxy para a Nota Tecnica: os dois perfis abaixo usam `versao="1.01"`.
+
+- `NFSeLayoutProfile.RtcV101_202607` (padrao): bundle de Producao Restrita de 27/07/2026, com RTC/IBS/CBS e CNPJ alfanumerico. O historico oficial informa ativacao do tratamento de CNPJ alfanumerico em Producao em 10/08/2026.
+- `NFSeLayoutProfile.LegacyV101_202602`: bundle de Producao de 09/02/2026 (NT 004/IBS-CBS, CNPJ numerico), para integracoes que ainda precisam do contrato anterior a revisao alfanumerica.
+
+`NFSeLayoutDefaults.Current` e o alias dinamico usado quando `LayoutProfile` nao e informado e pode mudar em uma futura versao do SDK. Para comportamento reprodutivel entre upgrades, fixe um dos valores imutaveis de `NFSeLayoutProfile`; a adicao futura da NT 009 nao removera os perfis anteriores.
+
+A pagina de Producao atualizada em agosto ainda aponta para o ZIP de fevereiro, enquanto o historico de implantacao confirma a ativacao posterior. Por isso a divergencia e explicita, auditavel e selecionavel; nenhum schema e baixado em runtime. O manifesto fica em `src/NFSeNacionalSdk.Serialization.Xml/Schemas/README.md`.
+
+Limitacao conhecida do bundle de 27/07/2026: `TSCNPJ` e `TSIdPedRegEvt` admitem caracteres do CNPJ alfanumerico, mas o pattern publicado para `TSChaveNFSe` libera letras em posicoes diferentes das usadas pelo ID do evento. Assim, algumas chaves contendo CNPJ alfanumerico podem falhar na validacao de eventos. O SDK aceita `CNPJAutor` alfanumerico, mas nao relaxa nem altera o XSD oficial; uma correcao depende de novo bundle oficial.
 
 ## Target Frameworks
 
@@ -61,6 +81,8 @@ using NFSeNacionalSdk.Core.Options;
 using var client = NFSeClientFactory.Create(options =>
 {
     options.Environment = NFSeEnvironment.ProductionRestricted;
+    options.ApplicationName = "MeuERP";
+    options.ApplicationVersion = "4.2.1";
     options.CertificateFile = new NFSeCertificateFileOptions
     {
         Path = "certificado.pfx",
@@ -68,6 +90,27 @@ using var client = NFSeClientFactory.Create(options =>
     };
 });
 ```
+
+O exemplo acima usa o default vigente. Para fixar explicitamente o contrato fiscal:
+
+```csharp
+using var client = NFSeClientFactory.Create(options =>
+{
+    options.Environment = NFSeEnvironment.Production;
+    options.LayoutProfile = NFSeLayoutProfile.RtcV101_202607;
+});
+```
+
+`ApplicationName` e `ApplicationVersion` formam o `verAplic` (maximo oficial de 20 caracteres). Se omitidos, o SDK mantem o identificador historico baseado na propria versao.
+
+Quando mTLS e assinatura usam certificados diferentes, configure-os separadamente:
+
+```csharp
+options.CertificateFile = new NFSeCertificateFileOptions { Path = "mtls.pfx", Password = "..." };
+options.SigningCertificateFile = new NFSeCertificateFileOptions { Path = "assinatura.pfx", Password = "..." };
+```
+
+`ClientCertificate`/`CertificateFile` continuam funcionando sozinhos: na ausencia de certificado de assinatura dedicado, o mesmo certificado e reutilizado. Arquivos PFX usam `EphemeralKeySet` por padrao para nao persistir chaves no host.
 
 Tambem e possivel informar um `X509Certificate2` ja carregado:
 
@@ -80,7 +123,7 @@ using NFSeNacionalSdk.Core.Options;
 using var certificate = NFSeCertificateLoader.LoadFromPfxFile(
     "certificado.pfx",
     "senha-do-certificado",
-    X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
+    X509KeyStorageFlags.EphemeralKeySet);
 
 using var client = NFSeClientFactory.Create(
     new NFSeSdkOptions
@@ -150,7 +193,7 @@ End If
 client.Dispose()
 ```
 
-Para emissao, `DateOnly` tambem fica disponivel no target `netstandard2.0` pelo proprio pacote de contratos:
+Para emissao, `DateOnly` tambem fica disponivel no target `netstandard2.0` pelo proprio pacote de contratos. Esse shim de compatibilidade foi preservado nesta release para evitar breaking change; substitui-lo por outro tipo continua sendo divida tecnica para uma major version:
 
 ```vbnet
 Dim emissao = New EmitDpsRequest With {
@@ -225,7 +268,27 @@ var result = await client.EmitDpsAsync(new EmitDpsRequest
         IssWithholdingType = NFSeIssWithholdingType.NotWithheld,
         IssRate = null,
         TotalTaxIndicator = null,
-        SimplesNationalTotalTaxRate = 2.00m
+        SimplesNationalTotalTaxRate = 2.00m,
+        Federal = new EmitDpsFederalTaxation
+        {
+            PisCofins = new EmitDpsPisCofinsTaxation
+            {
+                TaxStatusCode = "01",
+                CalculationBase = 1.00m,
+                PisRate = 0.65m,
+                CofinsRate = 3.00m,
+                PisAmount = 0.01m,
+                CofinsAmount = 0.03m,
+                WithholdingType = NFSePisCofinsWithholdingType.PisCofinsCsllNotWithheld
+            }
+        },
+        IbsCbs = new EmitDpsIbsCbsTaxation
+        {
+            OperationIndicatorCode = "010101",
+            DestinationIndicator = NFSeIbsCbsDestinationIndicator.No,
+            TaxStatusCode = "000",
+            TaxClassificationCode = "000001"
+        }
     }
 }, cancellationToken);
 
@@ -237,6 +300,8 @@ Console.WriteLine(result.RawXml);
 ```
 
 Para ME/EPP com `opSimpNac = 3`, `regApTribSN = 1` e ISSQN nao retido, informe `IssRate = null`. Para esse mesmo caso, use `TotalTaxIndicator = null` e informe `SimplesNationalTotalTaxRate`.
+
+O SDK nao arredonda valores fiscais silenciosamente: valores com mais de duas casas sao rejeitados. Campos opcionais de IBS/CBS nao sao inventados; regras e codigos ainda preliminares da NT 009 ficaram fora da API.
 
 ### Cancelar NFS-e por evento
 
@@ -262,6 +327,22 @@ Console.WriteLine(result.RawXml);
 Console.WriteLine(result.Event?.Description);
 ```
 
+### Consultar eventos
+
+```csharp
+var eventos = await client.GetNfseEventsAsync(new GetNfseEventsRequest
+{
+    AccessKey = "<CHAVE_ACESSO_NFSE>",
+    EventTypeCode = "101101", // opcional
+    SequenceNumber = 1        // opcional; requer EventTypeCode
+}, cancellationToken);
+
+foreach (var evento in eventos.Events)
+    Console.WriteLine($"{evento.TypeCode}/{evento.SequenceNumber}: {evento.Description}");
+```
+
+Sem tipo, o endpoint lista todos os eventos da chave. Com tipo, filtra o tipo; com tipo e sequencia, consulta a ocorrencia especifica. `RawJson` e `RawXmlDocuments` preservam as respostas originais.
+
 ### Respostas padronizadas
 
 As respostas principais implementam `INFSeResponse` e expoem:
@@ -273,6 +354,8 @@ As respostas principais implementam `INFSeResponse` e expoem:
 - `RawJson`: JSON bruto retornado pela API
 
 Consultas e emissoes que retornam documento tambem disponibilizam objeto estruturado em `Document`. Eventos de cancelamento retornam dados estruturados em `Event`.
+
+HTTP 2xx vazio nao e tratado como sucesso de negocio. A validacao de XML recebido fica ativa no cliente criado por `NFSeSdkOptions` (`ValidateResponseXml = true`); ela valida estrutura XSD e protecoes de parsing, mas nao valida cadeia de confianca, revogacao ou autoria da assinatura XML.
 
 ## Sample Console
 
@@ -300,6 +383,20 @@ Antes de emitir, consulte:
 - aliquota por municipio/servico/competencia: `GetMunicipalServiceParametersAsync`
 
 Essas consultas ajudam a identificar casos em que o municipio nao esta ativo no ambiente nacional ou em que a aliquota deve ser omitida/informada conforme parametrizacao.
+
+Os resultados agora incluem `GetMunicipalConventionResult.Parameters` e `GetMunicipalServiceParametersResult.TaxRates`. Campos desconhecidos continuam tolerados e o JSON integral permanece em `RawJson`.
+
+## Testes de integracao
+
+O projeto `tests/NFSeNacionalSdk.IntegrationTests` e opt-in. Sem credenciais, os testes ficam marcados como ignorados. Para executar contra Producao Restrita:
+
+```powershell
+$env:NFSE_INTEGRATION_ENABLED="1"
+$env:NFSE_INTEGRATION_CERTIFICATE_PATH="C:\caminho\certificado.pfx"
+$env:NFSE_INTEGRATION_CERTIFICATE_PASSWORD="senha"
+$env:NFSE_INTEGRATION_MUNICIPALITY_CODE="3204005"
+dotnet test tests/NFSeNacionalSdk.IntegrationTests -c Release
+```
 
 ## Empacotamento
 
@@ -370,6 +467,7 @@ src/
 
 tests/
   NFSeNacionalSdk.Tests
+  NFSeNacionalSdk.IntegrationTests
 
 samples/
   NFSeNacionalSdk.Samples.Console
@@ -379,7 +477,9 @@ samples/
 
 - Documentacao tecnica atual da NFS-e: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/documentacao-atual
 - APIs de Producao Restrita e Producao: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/apis-prod-restrita-e-producao
-- Schemas usados nos testes: `NFSe-ESQUEMAS_XSD-v1.01-20260209`
+- RTC e Notas Tecnicas: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/rtc
+- Historico de atualizacoes: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/atualizacoes-e-implantacoes
+- Schemas embarcados: `NFSe-ESQUEMAS_XSD-v1.01-20260209` e `NFSe-ESQUEMAS_XSD-PRODREST-v1.01-20260727`
 
 ## Contribuicao
 
