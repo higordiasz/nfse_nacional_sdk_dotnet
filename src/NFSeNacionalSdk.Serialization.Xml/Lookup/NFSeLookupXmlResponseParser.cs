@@ -22,7 +22,9 @@ internal sealed class NFSeLookupXmlResponseParser
 
         try
         {
-            var root = XDocument.Parse(content, LoadOptions.PreserveWhitespace).Root
+            using var stringReader = new StringReader(content);
+            using var xmlReader = XmlReader.Create(stringReader, CreateSafeReaderSettings());
+            var root = XDocument.Load(xmlReader, LoadOptions.PreserveWhitespace).Root
                 ?? throw new NFSeSerializationException("XML content does not contain a root element.");
 
             return root.Name.LocalName switch
@@ -83,7 +85,7 @@ internal sealed class NFSeLookupXmlResponseParser
             DpsNumber = TrimToNull(dpsInfo?.Number) ?? TrimToNull(dps?.LegacyNumber),
             NetAmount = values?.NetAmount ?? ParseDecimal(info.Values?.NetAmount),
             Values = values,
-            Taxation = MapTaxation(dpsValues?.Taxation),
+            Taxation = MapTaxation(dpsValues?.Taxation, dpsInfo?.IbsCbs),
             Issuer = issuer,
             Recipient = recipient,
             Service = service
@@ -273,21 +275,22 @@ internal sealed class NFSeLookupXmlResponseParser
             : null;
     }
 
-    private static NFSeTaxation? MapTaxation(NFSeLookupTaxationXml? source)
+    private static NFSeTaxation? MapTaxation(NFSeLookupTaxationXml? source, NFSeLookupIbsCbsXml? ibsCbs)
     {
-        if (source is null)
+        if (source is null && ibsCbs is null)
         {
             return null;
         }
 
         var taxation = new NFSeTaxation
         {
-            Municipal = MapMunicipalTaxation(source.MunicipalTaxation),
-            Federal = MapFederalTaxation(source.FederalTaxation),
-            Total = MapTotalTax(source.TotalTax)
+            Municipal = MapMunicipalTaxation(source?.MunicipalTaxation),
+            Federal = MapFederalTaxation(source?.FederalTaxation),
+            Total = MapTotalTax(source?.TotalTax),
+            IbsCbs = MapIbsCbs(ibsCbs)
         };
 
-        return taxation.Municipal is not null || taxation.Federal is not null || taxation.Total is not null
+        return taxation.Municipal is not null || taxation.Federal is not null || taxation.Total is not null || taxation.IbsCbs is not null
             ? taxation
             : null;
     }
@@ -355,7 +358,8 @@ internal sealed class NFSeLookupXmlResponseParser
             CofinsRate = ParseDecimal(source.CofinsRate),
             PisAmount = ParseDecimal(source.PisAmount),
             CofinsAmount = ParseDecimal(source.CofinsAmount),
-            WithholdingTypeCode = TrimToNull(source.WithholdingType)
+            WithholdingTypeCode = TrimToNull(source.WithholdingType),
+            WithholdingType = ParseEnumValue<NFSePisCofinsWithholdingType>(source.WithholdingType)
         };
 
         return HasAnyValue(taxation.TaxStatusCode, taxation.WithholdingTypeCode)
@@ -367,6 +371,44 @@ internal sealed class NFSeLookupXmlResponseParser
                 taxation.CofinsAmount)
             ? taxation
             : null;
+    }
+
+    private static NFSeIbsCbsTaxation? MapIbsCbs(NFSeLookupIbsCbsXml? source)
+    {
+        if (source is null)
+        {
+            return null;
+        }
+
+        var group = source.Values?.Taxation?.Group;
+        var regular = group?.RegularTaxation;
+        var deferral = group?.Deferral;
+        var purposeCode = TrimToNull(source.Purpose);
+        var destinationCode = TrimToNull(source.DestinationIndicator);
+        return new NFSeIbsCbsTaxation
+        {
+            PurposeCode = purposeCode,
+            Purpose = ParseEnumValue<NFSeIbsCbsPurpose>(purposeCode),
+            IsFinalConsumer = source.IsFinalConsumer switch { "0" => false, "1" => true, _ => null },
+            OperationIndicatorCode = TrimToNull(source.OperationIndicatorCode),
+            OperationTypeCode = TrimToNull(source.OperationTypeCode),
+            DestinationIndicatorCode = destinationCode,
+            DestinationIndicator = ParseEnumValue<NFSeIbsCbsDestinationIndicator>(destinationCode),
+            TaxStatusCode = TrimToNull(group?.TaxStatusCode),
+            TaxClassificationCode = TrimToNull(group?.TaxClassificationCode),
+            PresumedCreditCode = TrimToNull(group?.PresumedCreditCode),
+            RegularTaxation = regular is null ? null : new NFSeIbsCbsRegularTaxation
+            {
+                TaxStatusCode = TrimToNull(regular.TaxStatusCode),
+                TaxClassificationCode = TrimToNull(regular.TaxClassificationCode)
+            },
+            Deferral = deferral is null ? null : new NFSeIbsCbsDeferral
+            {
+                StateIbsRate = ParseDecimal(deferral.StateIbsRate),
+                MunicipalIbsRate = ParseDecimal(deferral.MunicipalIbsRate),
+                CbsRate = ParseDecimal(deferral.CbsRate)
+            }
+        };
     }
 
     private static NFSeTotalTax? MapTotalTax(NFSeLookupTotalTaxXml? source)
@@ -513,7 +555,8 @@ internal sealed class NFSeLookupXmlResponseParser
                 Namespace = rootNamespace
             });
 
-        using var reader = new StringReader(content);
+        using var stringReader = new StringReader(content);
+        using var reader = XmlReader.Create(stringReader, CreateSafeReaderSettings());
         var value = serializer.Deserialize(reader);
 
         if (value is not T typedValue)
@@ -530,6 +573,12 @@ internal sealed class NFSeLookupXmlResponseParser
         var normalized = value?.Trim();
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
+
+    private static XmlReaderSettings CreateSafeReaderSettings() => new()
+    {
+        DtdProcessing = DtdProcessing.Prohibit,
+        XmlResolver = null
+    };
 
     private static bool HasAnyValue(params string?[] values)
     {

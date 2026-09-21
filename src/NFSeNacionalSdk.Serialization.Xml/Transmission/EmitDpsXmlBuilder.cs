@@ -8,6 +8,7 @@ using NFSeNacionalSdk.Core.Enums;
 using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Serialization.Xml;
 using NFSeNacionalSdk.Serialization.Xml.Lookup;
+using NFSeNacionalSdk.Serialization.Xml.Layout;
 using NFSeNacionalSdk.Serialization.Xml.Transmission.Models;
 
 namespace NFSeNacionalSdk.Serialization.Xml.Transmission;
@@ -37,7 +38,8 @@ internal sealed class EmitDpsXmlBuilder
             ?? throw new NFSeSerializationException($"{nameof(request.Service)} must be informed.");
         var taxation = request.Taxation
             ?? throw new NFSeSerializationException($"{nameof(request.Taxation)} must be informed.");
-        var providerTaxId = NormalizeTaxId(provider.TaxId, nameof(request.Provider.TaxId));
+        var profile = NFSeLayoutProfileInfo.Resolve(context.LayoutProfile);
+        var providerTaxId = BrazilianTaxId.Parse(provider.TaxId, nameof(request.Provider.TaxId), profile);
         var municipalityCode = NormalizeDigits(request.MunicipalityCode, 7, 7, nameof(request.MunicipalityCode));
         var series = NormalizeSeries(request.Series);
         var number = NormalizeNumber(request.Number);
@@ -59,15 +61,16 @@ internal sealed class EmitDpsXmlBuilder
                 EmitterType = ((int)request.EmitterType).ToString(CultureInfo.InvariantCulture),
                 MunicipalityCode = municipalityCode,
                 Provider = BuildProvider(provider, providerTaxId),
-                Recipient = request.Recipient is null ? null : BuildRecipient(request.Recipient),
+                Recipient = request.Recipient is null ? null : BuildRecipient(request.Recipient, profile),
                 Service = BuildService(service, municipalityCode),
-                Values = BuildValues(service, provider, taxation)
+                Values = BuildValues(service, provider, taxation),
+                IbsCbs = BuildIbsCbs(taxation.IbsCbs, profile)
             }
         };
 
         var unsignedXml = SerializeUnsigned(envelope);
         var signedXml = _signer.Sign(unsignedXml, dpsId, context.SigningCertificate);
-        _schemaValidator.Validate(signedXml);
+        _schemaValidator.Validate(signedXml, context.LayoutProfile);
 
         return new EmitDpsSerializationResult
         {
@@ -76,7 +79,7 @@ internal sealed class EmitDpsXmlBuilder
         };
     }
 
-    private static EmitDpsProviderXml BuildProvider(EmitDpsProvider provider, NormalizedTaxId taxId)
+    private static EmitDpsProviderXml BuildProvider(EmitDpsProvider provider, BrazilianTaxId taxId)
     {
         if (provider is null) { throw new ArgumentNullException(nameof(provider)); }
 
@@ -101,11 +104,11 @@ internal sealed class EmitDpsXmlBuilder
         return providerXml;
     }
 
-    private static EmitDpsPersonXml BuildRecipient(EmitDpsRecipient recipient)
+    private static EmitDpsPersonXml BuildRecipient(EmitDpsRecipient recipient, NFSeLayoutProfileInfo profile)
     {
         if (recipient is null) { throw new ArgumentNullException(nameof(recipient)); }
 
-        var taxId = NormalizeTaxId(recipient.TaxId, nameof(recipient.TaxId));
+        var taxId = BrazilianTaxId.Parse(recipient.TaxId, nameof(recipient.TaxId), profile);
         var recipientXml = new EmitDpsPersonXml
         {
             Name = EnsureNotWhiteSpace(recipient.Name, nameof(recipient.Name)),
@@ -195,7 +198,129 @@ internal sealed class EmitDpsXmlBuilder
                     IssWithholdingType = ((int)taxation.IssWithholdingType).ToString(CultureInfo.InvariantCulture),
                     IssRate = FormatOptionalIssRate(taxation.IssRate, nameof(taxation.IssRate))
                 },
+                FederalTaxation = BuildFederalTaxation(taxation.Federal),
                 TotalTax = BuildTotalTax(provider, taxation)
+            }
+        };
+    }
+
+    private static EmitDpsFederalTaxationXml? BuildFederalTaxation(EmitDpsFederalTaxation? federal)
+    {
+        if (federal is null)
+        {
+            return null;
+        }
+
+        return new EmitDpsFederalTaxationXml
+        {
+            PisCofins = BuildPisCofins(federal.PisCofins),
+            SocialSecurityRetentionAmount = FormatOptionalAmount(
+                federal.SocialSecurityRetentionAmount,
+                nameof(federal.SocialSecurityRetentionAmount)),
+            IncomeTaxRetentionAmount = FormatOptionalAmount(
+                federal.IncomeTaxRetentionAmount,
+                nameof(federal.IncomeTaxRetentionAmount)),
+            SocialContributionRetentionAmount = FormatOptionalAmount(
+                federal.SocialContributionRetentionAmount,
+                nameof(federal.SocialContributionRetentionAmount))
+        };
+    }
+
+    private static EmitDpsPisCofinsTaxationXml? BuildPisCofins(EmitDpsPisCofinsTaxation? pisCofins)
+    {
+        if (pisCofins is null)
+        {
+            return null;
+        }
+
+        return new EmitDpsPisCofinsTaxationXml
+        {
+            TaxStatusCode = NormalizeDigits(pisCofins.TaxStatusCode, 2, 2, nameof(pisCofins.TaxStatusCode)),
+            CalculationBase = FormatOptionalAmount(pisCofins.CalculationBase, nameof(pisCofins.CalculationBase)),
+            PisRate = FormatOptionalRate(pisCofins.PisRate, nameof(pisCofins.PisRate), 100m),
+            CofinsRate = FormatOptionalRate(pisCofins.CofinsRate, nameof(pisCofins.CofinsRate), 100m),
+            PisAmount = FormatOptionalAmount(pisCofins.PisAmount, nameof(pisCofins.PisAmount)),
+            CofinsAmount = FormatOptionalAmount(pisCofins.CofinsAmount, nameof(pisCofins.CofinsAmount)),
+            WithholdingType = pisCofins.WithholdingType is null
+                ? null
+                : ((int)pisCofins.WithholdingType.Value).ToString(CultureInfo.InvariantCulture)
+        };
+    }
+
+    private static EmitDpsIbsCbsXml? BuildIbsCbs(
+        EmitDpsIbsCbsTaxation? ibsCbs,
+        NFSeLayoutProfileInfo profile)
+    {
+        if (ibsCbs is null)
+        {
+            return null;
+        }
+
+        if (!profile.SupportsIbsCbs)
+        {
+            throw new NFSeSerializationException(
+                $"taxation.IbsCbs is incompatible with layout profile {profile.Profile}.");
+        }
+
+        var regular = ibsCbs.RegularTaxation;
+        var deferral = ibsCbs.Deferral;
+        return new EmitDpsIbsCbsXml
+        {
+            Purpose = ((int)ibsCbs.Purpose).ToString(CultureInfo.InvariantCulture),
+            IsFinalConsumer = ibsCbs.IsFinalConsumer is null ? null : (ibsCbs.IsFinalConsumer.Value ? "1" : "0"),
+            OperationIndicatorCode = NormalizeDigits(
+                ibsCbs.OperationIndicatorCode,
+                6,
+                6,
+                nameof(ibsCbs.OperationIndicatorCode)),
+            OperationTypeCode = NormalizeOptionalDigits(
+                ibsCbs.OperationTypeCode,
+                1,
+                1,
+                nameof(ibsCbs.OperationTypeCode)),
+            DestinationIndicator = ((int)ibsCbs.DestinationIndicator).ToString(CultureInfo.InvariantCulture),
+            Values = new EmitDpsIbsCbsValuesXml
+            {
+                Taxation = new EmitDpsIbsCbsTaxXml
+                {
+                    Group = new EmitDpsIbsCbsGroupXml
+                    {
+                        TaxStatusCode = NormalizeDigits(ibsCbs.TaxStatusCode, 3, 3, nameof(ibsCbs.TaxStatusCode)),
+                        TaxClassificationCode = NormalizeDigits(
+                            ibsCbs.TaxClassificationCode,
+                            6,
+                            6,
+                            nameof(ibsCbs.TaxClassificationCode)),
+                        PresumedCreditCode = NormalizeOptionalDigits(
+                            ibsCbs.PresumedCreditCode,
+                            2,
+                            2,
+                            nameof(ibsCbs.PresumedCreditCode)),
+                        RegularTaxation = regular is null
+                            ? null
+                            : new EmitDpsIbsCbsRegularXml
+                            {
+                                TaxStatusCode = NormalizeDigits(
+                                    regular.TaxStatusCode,
+                                    3,
+                                    3,
+                                    nameof(regular.TaxStatusCode)),
+                                TaxClassificationCode = NormalizeDigits(
+                                    regular.TaxClassificationCode,
+                                    6,
+                                    6,
+                                    nameof(regular.TaxClassificationCode))
+                            },
+                        Deferral = deferral is null
+                            ? null
+                            : new EmitDpsIbsCbsDeferralXml
+                            {
+                                StateIbsRate = FormatRequiredRate(deferral.StateIbsRate, nameof(deferral.StateIbsRate), 1_000m),
+                                MunicipalIbsRate = FormatRequiredRate(deferral.MunicipalIbsRate, nameof(deferral.MunicipalIbsRate), 1_000m),
+                                CbsRate = FormatRequiredRate(deferral.CbsRate, nameof(deferral.CbsRate), 1_000m)
+                            }
+                    }
+                }
             }
         };
     }
@@ -307,38 +432,38 @@ internal sealed class EmitDpsXmlBuilder
 
     private static string BuildDpsId(
         string municipalityCode,
-        NormalizedTaxId providerTaxId,
+        BrazilianTaxId providerTaxId,
         string series,
         string number)
     {
-        var paddedTaxId = providerTaxId.Digits.PadLeft(14, '0');
+        var paddedTaxId = providerTaxId.Value.PadLeft(14, '0');
         var paddedSeries = series.PadLeft(5, '0');
         var paddedNumber = number.PadLeft(15, '0');
 
         return string.Concat("DPS", municipalityCode, providerTaxId.TypeCode, paddedTaxId, paddedSeries, paddedNumber);
     }
 
-    private static void ApplyTaxId(EmitDpsProviderXml destination, NormalizedTaxId taxId)
+    private static void ApplyTaxId(EmitDpsProviderXml destination, BrazilianTaxId taxId)
     {
         if (taxId.IsCnpj)
         {
-            destination.Cnpj = taxId.Digits;
+            destination.Cnpj = taxId.Value;
         }
         else
         {
-            destination.Cpf = taxId.Digits;
+            destination.Cpf = taxId.Value;
         }
     }
 
-    private static void ApplyTaxId(EmitDpsPersonXml destination, NormalizedTaxId taxId)
+    private static void ApplyTaxId(EmitDpsPersonXml destination, BrazilianTaxId taxId)
     {
         if (taxId.IsCnpj)
         {
-            destination.Cnpj = taxId.Digits;
+            destination.Cnpj = taxId.Value;
         }
         else
         {
-            destination.Cpf = taxId.Digits;
+            destination.Cpf = taxId.Value;
         }
     }
 
@@ -366,23 +491,11 @@ internal sealed class EmitDpsXmlBuilder
         return digits;
     }
 
-    private static NormalizedTaxId NormalizeTaxId(string? value, string parameterName)
-    {
-        var digits = NormalizeDigits(value, 11, 14, parameterName);
-
-        return digits.Length switch
-        {
-            11 => new NormalizedTaxId(digits, false, "1"),
-            14 => new NormalizedTaxId(digits, true, "2"),
-            _ => throw new NFSeSerializationException($"{parameterName} must contain either 11 digits (CPF) or 14 digits (CNPJ).")
-        };
-    }
-
     private static string NormalizeDigits(string? value, int minLength, int maxLength, string parameterName)
     {
-        var digits = new string(EnsureNotWhiteSpace(value, parameterName).Where(char.IsDigit).ToArray());
+        var digits = EnsureNotWhiteSpace(value, parameterName);
 
-        if (digits.Length < minLength || digits.Length > maxLength)
+        if (digits.Length < minLength || digits.Length > maxLength || digits.Any(character => character is < '0' or > '9'))
         {
             throw new NFSeSerializationException(
                 $"{parameterName} must contain between {minLength} and {maxLength} numeric digits.");
@@ -432,6 +545,23 @@ internal sealed class EmitDpsXmlBuilder
         return FormatNonNegativeDecimal(value.Value, parameterName, maximumExclusive: 10m);
     }
 
+    private static string? FormatOptionalRate(decimal? value, string parameterName, decimal maximumExclusive)
+    {
+        return value is null
+            ? null
+            : FormatNonNegativeDecimal(value.Value, parameterName, maximumExclusive);
+    }
+
+    private static string FormatRequiredRate(decimal? value, string parameterName, decimal maximumExclusive)
+    {
+        if (value is null)
+        {
+            throw new NFSeSerializationException($"{parameterName} must be informed when the deferral group is present.");
+        }
+
+        return FormatNonNegativeDecimal(value.Value, parameterName, maximumExclusive);
+    }
+
     private static string FormatNonNegativeDecimal(
         decimal value,
         string parameterName,
@@ -447,9 +577,13 @@ internal sealed class EmitDpsXmlBuilder
             throw new NFSeSerializationException($"{parameterName} exceeds the maximum value accepted by the DPS schema.");
         }
 
-        return decimal
-            .Round(value, 2, MidpointRounding.AwayFromZero)
-            .ToString("0.00", CultureInfo.InvariantCulture);
+        if (decimal.Round(value, 2, MidpointRounding.ToEven) != value)
+        {
+            throw new NFSeSerializationException(
+                $"{parameterName} must contain at most two decimal places; the SDK does not round fiscal values implicitly.");
+        }
+
+        return value.ToString("0.00", CultureInfo.InvariantCulture);
     }
 
     private static string EnsureNotWhiteSpace(string? value, string parameterName)
@@ -460,7 +594,7 @@ internal sealed class EmitDpsXmlBuilder
             throw new NFSeSerializationException($"{parameterName} must be informed.");
         }
 
-        return normalized;
+        return normalized!;
     }
 
     private static string? NormalizeOptionalText(string? value)
@@ -478,19 +612,4 @@ internal sealed class EmitDpsXmlBuilder
             : normalized.Substring(0, ApplicationVersionMaxLength);
     }
 
-    private readonly struct NormalizedTaxId
-    {
-        public NormalizedTaxId(string digits, bool isCnpj, string typeCode)
-        {
-            Digits = digits;
-            IsCnpj = isCnpj;
-            TypeCode = typeCode;
-        }
-
-        public string Digits { get; }
-
-        public bool IsCnpj { get; }
-
-        public string TypeCode { get; }
-    }
 }

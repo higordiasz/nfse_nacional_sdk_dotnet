@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Xml;
 using System.Xml.Linq;
 using NFSeNacionalSdk.Contracts.Documents;
 using NFSeNacionalSdk.Core.Exceptions;
@@ -16,7 +17,13 @@ public sealed class NFSeEventXmlResponseParser
 
         try
         {
-            var document = XDocument.Parse(content, LoadOptions.PreserveWhitespace);
+            using var stringReader = new StringReader(content);
+            using var reader = XmlReader.Create(stringReader, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null
+            });
+            var document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
             var info = FindFirst(document.Root, "infEvento");
             var eventRequestInfo = FindFirst(document.Root, "infPedReg");
             var cancellation = FindFirst(document.Root, "e101101");
@@ -96,7 +103,7 @@ public sealed class NFSeEventXmlResponseParser
 
     private static string? ExtractAccessKey(string? eventId)
     {
-        if (string.IsNullOrWhiteSpace(eventId) || eventId.Length < 59)
+        if (eventId is null || string.IsNullOrWhiteSpace(eventId) || eventId.Length < 59)
         {
             return null;
         }
@@ -112,7 +119,7 @@ public sealed class NFSeEventXmlResponseParser
 
     private static string? ExtractTypeCode(string? eventId)
     {
-        if (string.IsNullOrWhiteSpace(eventId) || eventId.Length < 59)
+        if (eventId is null || string.IsNullOrWhiteSpace(eventId) || eventId.Length < 59)
         {
             return null;
         }

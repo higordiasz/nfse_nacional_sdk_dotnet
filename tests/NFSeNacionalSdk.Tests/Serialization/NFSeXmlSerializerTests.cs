@@ -36,7 +36,7 @@ public sealed class NFSeXmlSerializerTests
         Assert.Equal("1", result.Document.DpsNumber);
         Assert.Equal(1500.75m, result.Document.NetAmount);
         Assert.Equal("Prestador Exemplo LTDA", result.Document.Issuer?.Name);
-        Assert.Equal("12345678000199", result.Document.Issuer?.TaxId);
+        Assert.Equal("12345678000195", result.Document.Issuer?.TaxId);
         Assert.Equal("998877", result.Document.Issuer?.MunicipalRegistration);
         Assert.Equal("11999990000", result.Document.Issuer?.Phone);
         Assert.Equal("contato@prestador.example", result.Document.Issuer?.Email);
@@ -56,7 +56,7 @@ public sealed class NFSeXmlSerializerTests
         Assert.Equal("0", result.Document.Issuer?.TaxRegime?.SpecialTaxRegimeCode);
         Assert.Equal(NFSeSpecialTaxRegime.None, result.Document.Issuer?.TaxRegime?.SpecialTaxRegime);
         Assert.Equal("Tomador Exemplo SA", result.Document.Recipient?.Name);
-        Assert.Equal("12345678901", result.Document.Recipient?.TaxId);
+        Assert.Equal("52998224725", result.Document.Recipient?.TaxId);
         Assert.Equal("financeiro@tomador.example", result.Document.Recipient?.Email);
         Assert.Equal("Consultoria especializada", result.Document.Service?.Description);
         Assert.Equal("140101", result.Document.Service?.ServiceCode);
@@ -84,10 +84,24 @@ public sealed class NFSeXmlSerializerTests
         Assert.Equal(9.75m, result.Document.Taxation?.Federal?.PisCofins?.PisAmount);
         Assert.Equal(45.02m, result.Document.Taxation?.Federal?.PisCofins?.CofinsAmount);
         Assert.Equal("1", result.Document.Taxation?.Federal?.PisCofins?.WithholdingTypeCode);
+        Assert.Equal(NFSePisCofinsWithholdingType.PisCofinsWithheld, result.Document.Taxation?.Federal?.PisCofins?.WithholdingType);
         Assert.Equal(1.00m, result.Document.Taxation?.Federal?.SocialSecurityRetentionAmount);
         Assert.Equal(2.00m, result.Document.Taxation?.Federal?.IncomeTaxRetentionAmount);
         Assert.Equal(3.00m, result.Document.Taxation?.Federal?.SocialContributionRetentionAmount);
         Assert.Equal(2.00m, result.Document.Taxation?.Total?.SimplesNationalRate);
+        Assert.Equal("0", result.Document.Taxation?.IbsCbs?.PurposeCode);
+        Assert.Equal(NFSeIbsCbsPurpose.Regular, result.Document.Taxation?.IbsCbs?.Purpose);
+        Assert.True(result.Document.Taxation?.IbsCbs?.IsFinalConsumer);
+        Assert.Equal("010101", result.Document.Taxation?.IbsCbs?.OperationIndicatorCode);
+        Assert.Equal("2", result.Document.Taxation?.IbsCbs?.OperationTypeCode);
+        Assert.Equal(NFSeIbsCbsDestinationIndicator.No, result.Document.Taxation?.IbsCbs?.DestinationIndicator);
+        Assert.Equal("999", result.Document.Taxation?.IbsCbs?.TaxStatusCode);
+        Assert.Equal("999999", result.Document.Taxation?.IbsCbs?.TaxClassificationCode);
+        Assert.Equal("000", result.Document.Taxation?.IbsCbs?.RegularTaxation?.TaxStatusCode);
+        Assert.Equal("000001", result.Document.Taxation?.IbsCbs?.RegularTaxation?.TaxClassificationCode);
+        Assert.Equal(10.00m, result.Document.Taxation?.IbsCbs?.Deferral?.StateIbsRate);
+        Assert.Equal(20.00m, result.Document.Taxation?.IbsCbs?.Deferral?.MunicipalIbsRate);
+        Assert.Equal(30.00m, result.Document.Taxation?.IbsCbs?.Deferral?.CbsRate);
     }
 
     [Fact]

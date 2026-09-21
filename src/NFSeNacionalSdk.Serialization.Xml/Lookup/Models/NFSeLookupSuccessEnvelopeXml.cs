@@ -124,6 +124,9 @@ public sealed class NFSeLookupDpsInfoXml
 
     [XmlElement("valores")]
     public NFSeLookupValuesXml? Values { get; set; }
+
+    [XmlElement("IBSCBS")]
+    public NFSeLookupIbsCbsXml? IbsCbs { get; set; }
 }
 
 public sealed class NFSeLookupPartyXml
@@ -323,6 +326,78 @@ public sealed class NFSeLookupPisCofinsTaxationXml
 
     [XmlElement("tpRetPisCofins")]
     public string? WithholdingType { get; set; }
+}
+
+public sealed class NFSeLookupIbsCbsXml
+{
+    [XmlElement("finNFSe")]
+    public string? Purpose { get; set; }
+
+    [XmlElement("indFinal")]
+    public string? IsFinalConsumer { get; set; }
+
+    [XmlElement("cIndOp")]
+    public string? OperationIndicatorCode { get; set; }
+
+    [XmlElement("tpOper")]
+    public string? OperationTypeCode { get; set; }
+
+    [XmlElement("indDest")]
+    public string? DestinationIndicator { get; set; }
+
+    [XmlElement("valores")]
+    public NFSeLookupIbsCbsValuesXml? Values { get; set; }
+}
+
+public sealed class NFSeLookupIbsCbsValuesXml
+{
+    [XmlElement("trib")]
+    public NFSeLookupIbsCbsTaxXml? Taxation { get; set; }
+}
+
+public sealed class NFSeLookupIbsCbsTaxXml
+{
+    [XmlElement("gIBSCBS")]
+    public NFSeLookupIbsCbsGroupXml? Group { get; set; }
+}
+
+public sealed class NFSeLookupIbsCbsGroupXml
+{
+    [XmlElement("CST")]
+    public string? TaxStatusCode { get; set; }
+
+    [XmlElement("cClassTrib")]
+    public string? TaxClassificationCode { get; set; }
+
+    [XmlElement("cCredPres")]
+    public string? PresumedCreditCode { get; set; }
+
+    [XmlElement("gTribRegular")]
+    public NFSeLookupIbsCbsRegularXml? RegularTaxation { get; set; }
+
+    [XmlElement("gDif")]
+    public NFSeLookupIbsCbsDeferralXml? Deferral { get; set; }
+}
+
+public sealed class NFSeLookupIbsCbsRegularXml
+{
+    [XmlElement("CSTReg")]
+    public string? TaxStatusCode { get; set; }
+
+    [XmlElement("cClassTribReg")]
+    public string? TaxClassificationCode { get; set; }
+}
+
+public sealed class NFSeLookupIbsCbsDeferralXml
+{
+    [XmlElement("pDifUF")]
+    public string? StateIbsRate { get; set; }
+
+    [XmlElement("pDifMun")]
+    public string? MunicipalIbsRate { get; set; }
+
+    [XmlElement("pDifCBS")]
+    public string? CbsRate { get; set; }
 }
 
 public sealed class NFSeLookupTotalTaxXml

@@ -38,10 +38,7 @@ public static class NFSeCertificateLoader
     public static X509Certificate2 LoadFromPfxFile(
         string path,
         string? password,
-        X509KeyStorageFlags storageFlags =
-            X509KeyStorageFlags.UserKeySet |
-            X509KeyStorageFlags.PersistKeySet |
-            X509KeyStorageFlags.Exportable)
+        X509KeyStorageFlags storageFlags = (X509KeyStorageFlags)32)
     {
         if (string.IsNullOrWhiteSpace(path)) { throw new ArgumentException("Value cannot be null or whitespace.", nameof(path)); }
 

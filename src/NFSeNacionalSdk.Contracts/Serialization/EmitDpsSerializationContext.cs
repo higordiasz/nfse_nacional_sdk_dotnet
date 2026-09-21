@@ -7,6 +7,8 @@ public sealed class EmitDpsSerializationContext
 {
     public NFSeEnvironment Environment { get; set; }
 
+    public NFSeLayoutProfile LayoutProfile { get; set; } = NFSeLayoutDefaults.Current;
+
     public X509Certificate2 SigningCertificate { get; set; }
 
     public string? ApplicationVersion { get; set; }

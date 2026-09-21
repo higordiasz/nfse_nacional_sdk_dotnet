@@ -6,6 +6,7 @@ using NFSeNacionalSdk.Contracts.Requests;
 using NFSeNacionalSdk.Contracts.Serialization;
 using NFSeNacionalSdk.Contracts.Transport;
 using NFSeNacionalSdk.Core.Enums;
+using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Core.Options;
 using NFSeNacionalSdk.Serialization.Xml;
 using NFSeNacionalSdk.Tests.TestData;
@@ -83,6 +84,22 @@ public sealed class NFSeClientTests
     }
 
     [Fact]
+    public async Task CancelNfseAsync_ShouldNotTreatEmptyCreatedResponseAsSuccess()
+    {
+        using var certificate = TestCertificateFactory.CreateSelfSignedCertificate();
+        using var client = new NFSeClient(
+            new CapturingTransport(HttpStatusCode.Created, string.Empty),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted),
+            certificate);
+
+        var result = await client.CancelNfseAsync(NFSeEventFixtures.CreateCancellationRequest());
+
+        Assert.False(result.Success);
+        Assert.NotEmpty(result.Messages);
+    }
+
+    [Fact]
     public async Task EmitDpsAsync_ShouldSendSignedCompressedXmlAndReturnNormalizedSuccessResult()
     {
         var transport = new CapturingTransport(HttpStatusCode.Created, NFSeTransmissionFixtures.SuccessApiResponseJson);
@@ -156,6 +173,28 @@ public sealed class NFSeClientTests
     }
 
     [Fact]
+    public async Task EmitDpsAsync_ShouldUseConfiguredApplicationIdentifier()
+    {
+        var transport = new CapturingTransport(HttpStatusCode.Created, NFSeTransmissionFixtures.SuccessApiResponseJson);
+        using var signingCertificate = TestCertificateFactory.CreateSelfSignedCertificate();
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted),
+            signingCertificate,
+            new NFSeSdkOptions
+            {
+                ApplicationName = "MeuERP",
+                ApplicationVersion = "2026.9",
+                ValidateResponseXml = false
+            });
+
+        var result = await client.EmitDpsAsync(NFSeTransmissionFixtures.CreateRequest());
+
+        Assert.Contains("<verAplic>MeuERP_2026.9</verAplic>", result.SubmittedDpsXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GetNfseByAccessKeyAsync_ShouldReturnNormalizedSuccessResult()
     {
         using var client = new NFSeClient(
@@ -205,6 +244,24 @@ public sealed class NFSeClientTests
             Assert.Equal("E2401", message.Code);
             Assert.Equal("Chave de acesso não encontrada.", message.Description);
         });
+    }
+
+    [Fact]
+    public async Task GetNfseByAccessKeyAsync_ShouldNotTreatDocumentOnServerErrorAsSuccess()
+    {
+        using var client = new NFSeClient(
+            new CapturingTransport(HttpStatusCode.InternalServerError, NFSeLookupXmlFixtures.SuccessApiResponseJson),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetNfseByAccessKeyAsync(new GetNfseByAccessKeyRequest
+        {
+            AccessKey = NFSeLookupXmlFixtures.AccessKey
+        });
+
+        Assert.False(result.Success);
+        Assert.Equal(HttpStatusCode.InternalServerError, result.StatusCode);
+        Assert.NotNull(result.Document);
     }
 
     [Fact]
@@ -342,7 +399,8 @@ public sealed class NFSeClientTests
             {
               "parametrosConvenio": {
                 "aderenteAmbienteNacional": 1,
-                "aderenteEmissorNacional": 0
+                "aderenteEmissorNacional": 0,
+                "campoFuturo": "preservado"
               },
               "mensagem": "Parametros do convenio recuperados com sucesso."
             }
@@ -362,6 +420,10 @@ public sealed class NFSeClientTests
         Assert.Equal(municipalityCode, result.MunicipalityCode);
         Assert.NotNull(result.JsonContent);
         Assert.Empty(result.Messages);
+        Assert.NotNull(result.Parameters);
+        Assert.Equal(1, result.Parameters!.UsesNationalEnvironment);
+        Assert.Equal(0, result.Parameters.UsesNationalIssuer);
+        Assert.Contains("campoFuturo", result.RawJson, StringComparison.Ordinal);
 
         Assert.NotNull(transport.LastRequest);
         Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
@@ -444,6 +506,11 @@ public sealed class NFSeClientTests
         Assert.Equal(competenceDate, result.CompetenceDate);
         Assert.NotNull(result.JsonContent);
         Assert.Empty(result.Messages);
+        var rate = Assert.Single(result.TaxRates[serviceCode]);
+        Assert.Equal("SIM", rate.Incidence);
+        Assert.Equal(3m, rate.Rate);
+        Assert.Equal(new DateTime(2025, 11, 20), rate.ValidFrom?.DateTime);
+        Assert.Null(rate.ValidTo);
 
         Assert.NotNull(transport.LastRequest);
         Assert.Equal(HttpMethod.Get, transport.LastRequest!.Method);
@@ -451,6 +518,100 @@ public sealed class NFSeClientTests
             "https://adn.producaorestrita.nfse.gov.br/parametrizacao/3204005/01.01.01.000/2026-04-29/aliquota",
             transport.LastRequest.Path);
         Assert.Equal("application/json", transport.LastRequest.Accept);
+    }
+
+    [Theory]
+    [InlineData(null, null, "/nfse/12345678212345678000195000000000000000000000000000/eventos")]
+    [InlineData("101101", null, "/nfse/12345678212345678000195000000000000000000000000000/eventos/101101")]
+    [InlineData("101101", 1, "/nfse/12345678212345678000195000000000000000000000000000/eventos/101101/1")]
+    public async Task GetNfseEventsAsync_ShouldSelectOfficialEndpointAndReturnTypedEvent(
+        string? eventTypeCode,
+        int? sequenceNumber,
+        string expectedPath)
+    {
+        var transport = new CapturingTransport(HttpStatusCode.OK, NFSeEventFixtures.SuccessApiResponseJson);
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetNfseEventsAsync(new GetNfseEventsRequest
+        {
+            AccessKey = NFSeEventFixtures.AccessKey,
+            EventTypeCode = eventTypeCode,
+            SequenceNumber = sequenceNumber
+        });
+
+        Assert.True(result.Success);
+        var eventDocument = Assert.Single(result.Events);
+        Assert.Equal(NFSeEventFixtures.EventId, eventDocument.Id);
+        Assert.Equal(NFSeEventFixtures.EventTypeCode, eventDocument.TypeCode);
+        Assert.Equal(NFSeEventFixtures.SuccessEventXml.Trim(), Assert.Single(result.RawXmlDocuments).Trim());
+        Assert.Equal(expectedPath, transport.LastRequest?.Path);
+    }
+
+    [Fact]
+    public async Task GetNfseEventsAsync_ShouldNotTreatEmptySuccessAsSuccess()
+    {
+        using var client = new NFSeClient(
+            new CapturingTransport(HttpStatusCode.OK, string.Empty),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetNfseEventsAsync(new GetNfseEventsRequest
+        {
+            AccessKey = NFSeEventFixtures.AccessKey
+        });
+
+        Assert.False(result.Success);
+        Assert.Empty(result.Events);
+        Assert.NotEmpty(result.Messages);
+    }
+
+    [Fact]
+    public async Task GetNfseEventsAsync_ShouldRejectInvalidJson()
+    {
+        using var client = new NFSeClient(
+            new CapturingTransport(HttpStatusCode.OK, "{invalid"),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        await Assert.ThrowsAsync<NFSeSerializationException>(() => client.GetNfseEventsAsync(
+            new GetNfseEventsRequest { AccessKey = NFSeEventFixtures.AccessKey }));
+    }
+
+    [Fact]
+    public async Task GetNfseEventsAsync_ShouldForwardCancellationToken()
+    {
+        var transport = new CapturingTransport(HttpStatusCode.OK, NFSeEventFixtures.SuccessApiResponseJson);
+        using var client = new NFSeClient(
+            transport,
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+        using var cancellation = new CancellationTokenSource();
+
+        await client.GetNfseEventsAsync(
+            new GetNfseEventsRequest { AccessKey = NFSeEventFixtures.AccessKey },
+            cancellation.Token);
+
+        Assert.Equal(cancellation.Token, transport.LastCancellationToken);
+    }
+
+    [Fact]
+    public async Task GetMunicipalConventionAsync_ShouldNotTreatEmptySuccessAsAvailable()
+    {
+        using var client = new NFSeClient(
+            new CapturingTransport(HttpStatusCode.OK, string.Empty),
+            CreateSerializer(),
+            NFSeEndpointsOptions.For(NFSeEnvironment.ProductionRestricted));
+
+        var result = await client.GetMunicipalConventionAsync(new GetMunicipalConventionRequest
+        {
+            MunicipalityCode = "3204005"
+        });
+
+        Assert.False(result.Success);
+        Assert.NotEmpty(result.Messages);
     }
 
     [Fact]
@@ -568,11 +729,14 @@ public sealed class NFSeClientTests
     {
         public TransportRequest? LastRequest { get; private set; }
 
+        public CancellationToken LastCancellationToken { get; private set; }
+
         public Task<TransportResponse> SendAsync(
             TransportRequest request,
             CancellationToken cancellationToken = default)
         {
             LastRequest = request;
+            LastCancellationToken = cancellationToken;
 
             var response = new TransportResponse
             {

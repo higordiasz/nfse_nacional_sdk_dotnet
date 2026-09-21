@@ -8,7 +8,7 @@ namespace NFSeNacionalSdk.Tests.TestData;
 internal static class NFSeEventFixtures
 {
     public const string AccessKey = NFSeLookupXmlFixtures.AccessKey;
-    public const string AuthorTaxId = "12345678000199";
+    public const string AuthorTaxId = "12345678000195";
     public const string EventTypeCode = "101101";
     public const string EventRequestId = $"PRE{AccessKey}{EventTypeCode}";
     public const string EventId = $"EVT{AccessKey}{EventTypeCode}001";

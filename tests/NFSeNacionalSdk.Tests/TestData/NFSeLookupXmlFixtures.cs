@@ -5,11 +5,11 @@ namespace NFSeNacionalSdk.Tests.TestData;
 
 internal static class NFSeLookupXmlFixtures
 {
-    public const string AccessKey = "12345678901234567890123456789012345678901234567890";
+    public const string AccessKey = "12345678212345678000195000000000000000000000000000";
 
     public const string Success = """
         <NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
-          <infNFSe Id="NFS12345678901234567890123456789012345678901234567890">
+          <infNFSe Id="NFS12345678212345678000195000000000000000000000000000">
             <xLocEmi>Sao Paulo</xLocEmi>
             <xLocPrestacao>Sao Paulo</xLocPrestacao>
             <nNFSe>2024000000001</nNFSe>
@@ -23,7 +23,7 @@ internal static class NFSeLookupXmlFixtures
             <dhProc>2026-04-13T15:30:00-03:00</dhProc>
             <nDFSe>123456789012345</nDFSe>
             <emit>
-              <CNPJ>12345678000199</CNPJ>
+              <CNPJ>12345678000195</CNPJ>
               <xNome>Prestador Exemplo LTDA</xNome>
               <enderNac>
                 <xLgr>Rua do Prestador</xLgr>
@@ -48,7 +48,7 @@ internal static class NFSeLookupXmlFixtures
                 <dCompet>2026-04-13</dCompet>
                 <cLocEmi>3550308</cLocEmi>
                 <prest>
-                  <CNPJ>12345678000199</CNPJ>
+                  <CNPJ>12345678000195</CNPJ>
                   <IM>998877</IM>
                   <xNome>Prestador Exemplo LTDA</xNome>
                   <email>contato@prestador.example</email>
@@ -59,7 +59,7 @@ internal static class NFSeLookupXmlFixtures
                   </regTrib>
                 </prest>
                 <toma>
-                  <CPF>12345678901</CPF>
+                  <CPF>52998224725</CPF>
                   <xNome>Tomador Exemplo SA</xNome>
                   <email>financeiro@tomador.example</email>
                 </toma>
@@ -109,6 +109,30 @@ internal static class NFSeLookupXmlFixtures
                     </totTrib>
                   </trib>
                 </valores>
+                <IBSCBS>
+                  <finNFSe>0</finNFSe>
+                  <indFinal>1</indFinal>
+                  <cIndOp>010101</cIndOp>
+                  <tpOper>2</tpOper>
+                  <indDest>0</indDest>
+                  <valores>
+                    <trib>
+                      <gIBSCBS>
+                        <CST>999</CST>
+                        <cClassTrib>999999</cClassTrib>
+                        <gTribRegular>
+                          <CSTReg>000</CSTReg>
+                          <cClassTribReg>000001</cClassTribReg>
+                        </gTribRegular>
+                        <gDif>
+                          <pDifUF>10.00</pDifUF>
+                          <pDifMun>20.00</pDifMun>
+                          <pDifCBS>30.00</pDifCBS>
+                        </gDif>
+                      </gIBSCBS>
+                    </trib>
+                  </valores>
+                </IBSCBS>
               </infDPS>
             </DPS>
           </infNFSe>
