@@ -8,10 +8,10 @@ namespace NFSeNacionalSdk.Tests.TestData;
 internal static class NFSeTransmissionFixtures
 {
     public const string MunicipalityCode = "3550308";
-    public const string ProviderTaxId = "12345678000199";
+    public const string ProviderTaxId = "12345678000195";
     public const string Series = "70000";
     public const string Number = "1";
-    public const string ExpectedDpsId = "DPS355030821234567800019970000000000000000001";
+    public const string ExpectedDpsId = "DPS355030821234567800019570000000000000000001";
 
     public static EmitDpsRequest CreateRequest(
         bool includeOptionalValues = false,
@@ -32,7 +32,7 @@ internal static class NFSeTransmissionFixtures
             MunicipalityCode = MunicipalityCode,
             Provider = new EmitDpsProvider
             {
-                TaxId = "12.345.678/0001-99",
+                TaxId = "12.345.678/0001-95",
                 MunicipalRegistration = "998877",
                 Name = "Prestador Exemplo LTDA",
                 Phone = "(11) 99999-0000",
@@ -43,7 +43,7 @@ internal static class NFSeTransmissionFixtures
             },
             Recipient = new EmitDpsRecipient
             {
-                TaxId = "123.456.789-01",
+                TaxId = "529.982.247-25",
                 Name = "Tomador Exemplo SA",
                 Email = "financeiro@tomador.example",
                 Address = new EmitDpsAddress

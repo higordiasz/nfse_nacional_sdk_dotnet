@@ -29,8 +29,11 @@ jobs:
             - name: Build solution
               run: dotnet build --no-restore --configuration Release
 
-            - name: Run tests
-              run: dotnet test --no-build --configuration Release
+            - name: Run tests (.NET 8)
+              run: dotnet test --no-build --configuration Release --framework net8.0
+
+            - name: Run tests (.NET 10)
+              run: dotnet test --no-build --configuration Release --framework net10.0
 
             - name: Pack NuGet packages
               run: dotnet pack --no-build --configuration Release --output artifacts/packages

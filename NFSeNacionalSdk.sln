@@ -23,6 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NFSeNacionalSdk.Samples.Console", "samples\NFSeNacionalSdk.Samples.Console\NFSeNacionalSdk.Samples.Console.csproj", "{CDA183B5-CD24-4E59-8B06-931A14C36677}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NFSeNacionalSdk.IntegrationTests", "tests\NFSeNacionalSdk.IntegrationTests\NFSeNacionalSdk.IntegrationTests.csproj", "{C4E91313-7D30-48B2-955A-E872489A06E1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -117,6 +119,18 @@ Global
 		{CDA183B5-CD24-4E59-8B06-931A14C36677}.Release|x64.Build.0 = Release|Any CPU
 		{CDA183B5-CD24-4E59-8B06-931A14C36677}.Release|x86.ActiveCfg = Release|Any CPU
 		{CDA183B5-CD24-4E59-8B06-931A14C36677}.Release|x86.Build.0 = Release|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Debug|x64.Build.0 = Debug|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Debug|x86.Build.0 = Debug|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Release|x64.ActiveCfg = Release|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Release|x64.Build.0 = Release|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Release|x86.ActiveCfg = Release|Any CPU
+		{C4E91313-7D30-48B2-955A-E872489A06E1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -129,5 +143,6 @@ Global
 		{E36AD9AC-0E16-4533-A4FF-A73D994E5575} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{4D8017BD-02AB-494F-9B97-159E2F613708} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{CDA183B5-CD24-4E59-8B06-931A14C36677} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{C4E91313-7D30-48B2-955A-E872489A06E1} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
