@@ -9,6 +9,7 @@ using NFSeNacionalSdk.Core.Exceptions;
 using NFSeNacionalSdk.Serialization.Xml;
 using NFSeNacionalSdk.Serialization.Xml.Events.Models;
 using NFSeNacionalSdk.Serialization.Xml.Lookup;
+using NFSeNacionalSdk.Serialization.Xml.Layout;
 
 namespace NFSeNacionalSdk.Serialization.Xml.Events;
 
@@ -33,8 +34,9 @@ internal sealed class CancelNfseEventXmlBuilder
             throw new NFSeSerializationException("A signing certificate is required to generate a cancellation event.");
         }
 
-        var accessKey = NormalizeDigits(request.AccessKey, 50, 50, nameof(request.AccessKey));
-        var authorTaxId = NormalizeTaxId(request.AuthorTaxId, nameof(request.AuthorTaxId));
+        var profile = NFSeLayoutProfileInfo.Resolve(context.LayoutProfile);
+        var accessKey = NormalizeAccessKey(request.AccessKey, profile);
+        var authorTaxId = BrazilianTaxId.Parse(request.AuthorTaxId, nameof(request.AuthorTaxId), profile);
         var reason = EnsureTextLength(request.Reason, nameof(request.Reason), 15, 255);
         var eventRequestId = BuildEventRequestId(accessKey);
 
@@ -47,8 +49,8 @@ internal sealed class CancelNfseEventXmlBuilder
                 EnvironmentType = ((int)context.Environment).ToString(CultureInfo.InvariantCulture),
                 ApplicationVersion = NormalizeApplicationVersion(context.ApplicationVersion),
                 EventAt = (request.EventAt ?? DateTimeOffset.Now).ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture),
-                AuthorCnpj = authorTaxId.IsCnpj ? authorTaxId.Digits : null,
-                AuthorCpf = authorTaxId.IsCnpj ? null : authorTaxId.Digits,
+                AuthorCnpj = authorTaxId.IsCnpj ? authorTaxId.Value : null,
+                AuthorCpf = authorTaxId.IsCnpj ? null : authorTaxId.Value,
                 AccessKey = accessKey,
                 Cancellation = new CancelNfseEventDetailXml
                 {
@@ -60,7 +62,7 @@ internal sealed class CancelNfseEventXmlBuilder
 
         var unsignedXml = SerializeUnsigned(envelope);
         var signedXml = _signer.Sign(unsignedXml, eventRequestId, context.SigningCertificate);
-        _schemaValidator.Validate(signedXml);
+        _schemaValidator.Validate(signedXml, context.LayoutProfile);
 
         return new CancelNfseSerializationResult
         {
@@ -103,29 +105,21 @@ internal sealed class CancelNfseEventXmlBuilder
         return string.Concat("PRE", accessKey, CancellationEventTypeCode);
     }
 
-    private static NormalizedTaxId NormalizeTaxId(string? value, string parameterName)
+    private static string NormalizeAccessKey(string? value, NFSeLayoutProfileInfo profile)
     {
-        var digits = NormalizeDigits(value, 11, 14, parameterName);
-
-        return digits.Length switch
-        {
-            11 => new NormalizedTaxId(digits, false),
-            14 => new NormalizedTaxId(digits, true),
-            _ => throw new NFSeSerializationException($"{parameterName} must contain either 11 digits (CPF) or 14 digits (CNPJ).")
-        };
-    }
-
-    private static string NormalizeDigits(string? value, int minLength, int maxLength, string parameterName)
-    {
-        var digits = new string(EnsureNotWhiteSpace(value, parameterName).Where(char.IsDigit).ToArray());
-
-        if (digits.Length < minLength || digits.Length > maxLength)
+        var normalized = EnsureNotWhiteSpace(value, nameof(CancelNfseRequest.AccessKey)).Trim().ToUpperInvariant();
+        var valid = normalized.Length == 50 && normalized.All(character =>
+            character is >= '0' and <= '9' ||
+            profile.SupportsAlphanumericCnpj && character is >= 'A' and <= 'Z');
+        if (!valid)
         {
             throw new NFSeSerializationException(
-                $"{parameterName} must contain between {minLength} and {maxLength} numeric digits.");
+                $"{nameof(CancelNfseRequest.AccessKey)} must contain 50 " +
+                (profile.SupportsAlphanumericCnpj ? "uppercase alphanumeric characters" : "numeric digits") +
+                $" for layout profile {profile.Profile}.");
         }
 
-        return digits;
+        return normalized!;
     }
 
     private static string EnsureTextLength(string? value, string parameterName, int minLength, int maxLength)
@@ -149,32 +143,16 @@ internal sealed class CancelNfseEventXmlBuilder
             throw new NFSeSerializationException($"{parameterName} must be informed.");
         }
 
-        return normalized;
+        return normalized!;
     }
 
     private static string NormalizeApplicationVersion(string? value)
     {
         var normalized = value?.Trim();
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            normalized = "NFSeNacionalSdk";
-        }
-
-        return normalized.Length <= ApplicationVersionMaxLength
-            ? normalized
-            : normalized.Substring(0, ApplicationVersionMaxLength);
+        var result = string.IsNullOrWhiteSpace(normalized) ? "NFSeNacionalSdk" : normalized!;
+        return result.Length <= ApplicationVersionMaxLength
+            ? result
+            : result.Substring(0, ApplicationVersionMaxLength);
     }
 
-    private readonly struct NormalizedTaxId
-    {
-        public NormalizedTaxId(string digits, bool isCnpj)
-        {
-            Digits = digits;
-            IsCnpj = isCnpj;
-        }
-
-        public string Digits { get; }
-
-        public bool IsCnpj { get; }
-    }
 }

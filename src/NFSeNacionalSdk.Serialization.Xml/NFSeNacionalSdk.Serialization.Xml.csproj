@@ -10,8 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Schemas\1.01\*.xsd">
-      <LogicalName>NFSeNacionalSdk.Serialization.Xml.Schemas.1.01.%(Filename)%(Extension)</LogicalName>
+    <EmbeddedResource Include="Schemas\LegacyV101_202602\*.xsd">
+      <LogicalName>NFSeNacionalSdk.Serialization.Xml.Schemas.LegacyV101_202602.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Schemas\RtcV101_202607\*.xsd">
+      <LogicalName>NFSeNacionalSdk.Serialization.Xml.Schemas.RtcV101_202607.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 

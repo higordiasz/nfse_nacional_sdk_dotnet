@@ -14,6 +14,9 @@ public sealed class GetMunicipalServiceParametersResult : INFSeResponse
 
     public bool Success => IsAvailable;
 
+    public IReadOnlyDictionary<string, IReadOnlyList<MunicipalServiceTaxRate>> TaxRates { get; set; } =
+        new Dictionary<string, IReadOnlyList<MunicipalServiceTaxRate>>();
+
     public string? RawXml { get; set; }
 
     public string? RawJson { get; set; }
@@ -23,4 +26,15 @@ public sealed class GetMunicipalServiceParametersResult : INFSeResponse
     public IReadOnlyList<NFSeMessage> Messages { get; set; } = Array.Empty<NFSeMessage>();
 
     public HttpStatusCode StatusCode { get; set; }
+}
+
+public sealed class MunicipalServiceTaxRate
+{
+    public string? Incidence { get; set; }
+
+    public decimal Rate { get; set; }
+
+    public DateTimeOffset? ValidFrom { get; set; }
+
+    public DateTimeOffset? ValidTo { get; set; }
 }

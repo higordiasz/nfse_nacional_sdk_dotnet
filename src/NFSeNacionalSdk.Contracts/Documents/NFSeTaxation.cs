@@ -24,6 +24,8 @@ public sealed class NFSeTaxation
     public NFSeFederalTaxation? Federal { get; set; }
 
     public NFSeTotalTax? Total { get; set; }
+
+    public NFSeIbsCbsTaxation? IbsCbs { get; set; }
 }
 
 public sealed class NFSeMunicipalTaxation
@@ -65,6 +67,51 @@ public sealed class NFSePisCofinsTaxation
     public decimal? CofinsAmount { get; set; }
 
     public string? WithholdingTypeCode { get; set; }
+
+    public NFSePisCofinsWithholdingType? WithholdingType { get; set; }
+}
+
+public sealed class NFSeIbsCbsTaxation
+{
+    public string? PurposeCode { get; set; }
+
+    public NFSeIbsCbsPurpose? Purpose { get; set; }
+
+    public bool? IsFinalConsumer { get; set; }
+
+    public string? OperationIndicatorCode { get; set; }
+
+    public string? OperationTypeCode { get; set; }
+
+    public string? DestinationIndicatorCode { get; set; }
+
+    public NFSeIbsCbsDestinationIndicator? DestinationIndicator { get; set; }
+
+    public string? TaxStatusCode { get; set; }
+
+    public string? TaxClassificationCode { get; set; }
+
+    public string? PresumedCreditCode { get; set; }
+
+    public NFSeIbsCbsRegularTaxation? RegularTaxation { get; set; }
+
+    public NFSeIbsCbsDeferral? Deferral { get; set; }
+}
+
+public sealed class NFSeIbsCbsRegularTaxation
+{
+    public string? TaxStatusCode { get; set; }
+
+    public string? TaxClassificationCode { get; set; }
+}
+
+public sealed class NFSeIbsCbsDeferral
+{
+    public decimal? StateIbsRate { get; set; }
+
+    public decimal? MunicipalIbsRate { get; set; }
+
+    public decimal? CbsRate { get; set; }
 }
 
 public sealed class NFSeTotalTax

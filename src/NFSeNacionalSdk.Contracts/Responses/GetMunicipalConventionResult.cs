@@ -10,6 +10,8 @@ public sealed class GetMunicipalConventionResult : INFSeResponse
 
     public bool Success => IsAvailable;
 
+    public MunicipalConventionParameters? Parameters { get; set; }
+
     public string? RawXml { get; set; }
 
     public string? RawJson { get; set; }
@@ -19,4 +21,19 @@ public sealed class GetMunicipalConventionResult : INFSeResponse
     public IReadOnlyList<NFSeMessage> Messages { get; set; } = Array.Empty<NFSeMessage>();
 
     public HttpStatusCode StatusCode { get; set; }
+}
+
+public sealed class MunicipalConventionParameters
+{
+    public int? ConventionType { get; set; }
+
+    public int? UsesNationalEnvironment { get; set; }
+
+    public int? UsesNationalIssuer { get; set; }
+
+    public int? DefaultFederalTaxpayerIssuanceStatus { get; set; }
+
+    public int? UsesNationalSupportModule { get; set; }
+
+    public bool? AllowsTaxCredits { get; set; }
 }

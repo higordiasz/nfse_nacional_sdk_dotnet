@@ -32,4 +32,8 @@ public interface INFSeClient
     Task<GetNfseByAccessKeyResult> GetNfseByAccessKeyAsync(
         GetNfseByAccessKeyRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<GetNfseEventsResult> GetNfseEventsAsync(
+        GetNfseEventsRequest request,
+        CancellationToken cancellationToken = default);
 }

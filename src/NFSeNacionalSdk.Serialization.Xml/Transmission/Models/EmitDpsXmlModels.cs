@@ -53,6 +53,9 @@ public sealed class EmitDpsInfoXml
 
     [XmlElement("valores", Order = 11)]
     public EmitDpsValuesXml Values { get; set; } = new();
+
+    [XmlElement("IBSCBS", Order = 12)]
+    public EmitDpsIbsCbsXml? IbsCbs { get; set; }
 }
 
 public sealed class EmitDpsProviderXml
@@ -213,8 +216,50 @@ public sealed class EmitDpsTaxationXml
     [XmlElement("tribMun", Order = 0)]
     public EmitDpsMunicipalTaxationXml MunicipalTaxation { get; set; } = new();
 
-    [XmlElement("totTrib", Order = 1)]
+    [XmlElement("tribFed", Order = 1)]
+    public EmitDpsFederalTaxationXml? FederalTaxation { get; set; }
+
+    [XmlElement("totTrib", Order = 2)]
     public EmitDpsTotalTaxXml TotalTax { get; set; } = new();
+}
+
+public sealed class EmitDpsFederalTaxationXml
+{
+    [XmlElement("piscofins", Order = 0)]
+    public EmitDpsPisCofinsTaxationXml? PisCofins { get; set; }
+
+    [XmlElement("vRetCP", Order = 1)]
+    public string? SocialSecurityRetentionAmount { get; set; }
+
+    [XmlElement("vRetIRRF", Order = 2)]
+    public string? IncomeTaxRetentionAmount { get; set; }
+
+    [XmlElement("vRetCSLL", Order = 3)]
+    public string? SocialContributionRetentionAmount { get; set; }
+}
+
+public sealed class EmitDpsPisCofinsTaxationXml
+{
+    [XmlElement("CST", Order = 0)]
+    public string TaxStatusCode { get; set; } = string.Empty;
+
+    [XmlElement("vBCPisCofins", Order = 1)]
+    public string? CalculationBase { get; set; }
+
+    [XmlElement("pAliqPis", Order = 2)]
+    public string? PisRate { get; set; }
+
+    [XmlElement("pAliqCofins", Order = 3)]
+    public string? CofinsRate { get; set; }
+
+    [XmlElement("vPis", Order = 4)]
+    public string? PisAmount { get; set; }
+
+    [XmlElement("vCofins", Order = 5)]
+    public string? CofinsAmount { get; set; }
+
+    [XmlElement("tpRetPisCofins", Order = 6)]
+    public string? WithholdingType { get; set; }
 }
 
 public sealed class EmitDpsMunicipalTaxationXml
@@ -236,4 +281,76 @@ public sealed class EmitDpsTotalTaxXml
 
     [XmlElement("pTotTribSN", Order = 1)]
     public string? SimplesNationalRate { get; set; }
+}
+
+public sealed class EmitDpsIbsCbsXml
+{
+    [XmlElement("finNFSe", Order = 0)]
+    public string Purpose { get; set; } = string.Empty;
+
+    [XmlElement("indFinal", Order = 1)]
+    public string? IsFinalConsumer { get; set; }
+
+    [XmlElement("cIndOp", Order = 2)]
+    public string OperationIndicatorCode { get; set; } = string.Empty;
+
+    [XmlElement("tpOper", Order = 3)]
+    public string? OperationTypeCode { get; set; }
+
+    [XmlElement("indDest", Order = 4)]
+    public string DestinationIndicator { get; set; } = string.Empty;
+
+    [XmlElement("valores", Order = 5)]
+    public EmitDpsIbsCbsValuesXml Values { get; set; } = new();
+}
+
+public sealed class EmitDpsIbsCbsValuesXml
+{
+    [XmlElement("trib", Order = 0)]
+    public EmitDpsIbsCbsTaxXml Taxation { get; set; } = new();
+}
+
+public sealed class EmitDpsIbsCbsTaxXml
+{
+    [XmlElement("gIBSCBS", Order = 0)]
+    public EmitDpsIbsCbsGroupXml Group { get; set; } = new();
+}
+
+public sealed class EmitDpsIbsCbsGroupXml
+{
+    [XmlElement("CST", Order = 0)]
+    public string TaxStatusCode { get; set; } = string.Empty;
+
+    [XmlElement("cClassTrib", Order = 1)]
+    public string TaxClassificationCode { get; set; } = string.Empty;
+
+    [XmlElement("cCredPres", Order = 2)]
+    public string? PresumedCreditCode { get; set; }
+
+    [XmlElement("gTribRegular", Order = 3)]
+    public EmitDpsIbsCbsRegularXml? RegularTaxation { get; set; }
+
+    [XmlElement("gDif", Order = 4)]
+    public EmitDpsIbsCbsDeferralXml? Deferral { get; set; }
+}
+
+public sealed class EmitDpsIbsCbsRegularXml
+{
+    [XmlElement("CSTReg", Order = 0)]
+    public string TaxStatusCode { get; set; } = string.Empty;
+
+    [XmlElement("cClassTribReg", Order = 1)]
+    public string TaxClassificationCode { get; set; } = string.Empty;
+}
+
+public sealed class EmitDpsIbsCbsDeferralXml
+{
+    [XmlElement("pDifUF", Order = 0)]
+    public string StateIbsRate { get; set; } = string.Empty;
+
+    [XmlElement("pDifMun", Order = 1)]
+    public string MunicipalIbsRate { get; set; } = string.Empty;
+
+    [XmlElement("pDifCBS", Order = 2)]
+    public string CbsRate { get; set; } = string.Empty;
 }

@@ -22,21 +22,13 @@ public static class NFSeServiceCollectionExtensions
 
         services.AddSingleton(options);
         services.AddSingleton(_ => NFSeEndpointsOptions.For(options.Environment));
-        if (options.ClientCertificate is not null)
-        {
-            services.AddSingleton(options.ClientCertificate);
-        }
-        else if (!string.IsNullOrWhiteSpace(options.CertificateFile?.Path))
-        {
-            var certificateFile = options.CertificateFile;
-            services.AddSingleton(_ => NFSeCertificateLoader.LoadFromPfxFile(certificateFile!));
-        }
+        services.AddSingleton(_ => CertificatePair.Create(options));
 
         services.AddSingleton<INFSeSerializer, NFSeXmlSerializer>();
         services.AddSingleton<INFSeTransport>(serviceProvider =>
         {
             var endpoints = serviceProvider.GetRequiredService<NFSeEndpointsOptions>();
-            var resolvedCertificate = serviceProvider.GetService<X509Certificate2>();
+            var certificates = serviceProvider.GetRequiredService<CertificatePair>();
 
             return new NFSeHttpTransport(
                 endpoints,
@@ -44,7 +36,7 @@ public static class NFSeServiceCollectionExtensions
                 {
                     Timeout = options.Timeout,
                     UserAgent = options.UserAgent,
-                    ClientCertificate = resolvedCertificate
+                    ClientCertificate = certificates.ClientCertificate
                 });
         });
         services.AddSingleton<INFSeClient>(serviceProvider =>
@@ -52,12 +44,61 @@ public static class NFSeServiceCollectionExtensions
             var transport = serviceProvider.GetRequiredService<INFSeTransport>();
             var serializer = serviceProvider.GetRequiredService<INFSeSerializer>();
             var endpoints = serviceProvider.GetRequiredService<NFSeEndpointsOptions>();
-            var resolvedCertificate = serviceProvider.GetService<X509Certificate2>();
+            var certificates = serviceProvider.GetRequiredService<CertificatePair>();
 
-            return new NFSeClient(transport, serializer, endpoints, resolvedCertificate);
+            return new NFSeClient(transport, serializer, endpoints, certificates.SigningCertificate, options);
         });
         services.AddSingleton(serviceProvider => (NFSeClient)serviceProvider.GetRequiredService<INFSeClient>());
 
         return services;
+    }
+
+    private sealed class CertificatePair : IDisposable
+    {
+        private CertificatePair(
+            X509Certificate2? clientCertificate,
+            X509Certificate2? signingCertificate,
+            bool ownsClientCertificate,
+            bool ownsSigningCertificate)
+        {
+            ClientCertificate = clientCertificate;
+            SigningCertificate = signingCertificate;
+            _ownsClientCertificate = ownsClientCertificate;
+            _ownsSigningCertificate = ownsSigningCertificate;
+        }
+
+        private readonly bool _ownsClientCertificate;
+        private readonly bool _ownsSigningCertificate;
+
+        public X509Certificate2? ClientCertificate { get; }
+
+        public X509Certificate2? SigningCertificate { get; }
+
+        public static CertificatePair Create(NFSeSdkOptions options)
+        {
+            var ownsClient = options.ClientCertificate is null && !string.IsNullOrWhiteSpace(options.CertificateFile?.Path);
+            var client = NFSeCertificateLoader.Load(options);
+            var ownsSigning = options.SigningCertificate is null &&
+                !string.IsNullOrWhiteSpace(options.SigningCertificateFile?.Path);
+            var signing = options.SigningCertificate ??
+                (options.SigningCertificateFile is null
+                    ? null
+                    : NFSeCertificateLoader.LoadFromPfxFile(options.SigningCertificateFile)) ??
+                client;
+            return new CertificatePair(client, signing, ownsClient, ownsSigning);
+        }
+
+        public void Dispose()
+        {
+            if (_ownsSigningCertificate)
+            {
+                SigningCertificate?.Dispose();
+            }
+
+            if (_ownsClientCertificate && !ReferenceEquals(ClientCertificate, SigningCertificate))
+            {
+                ClientCertificate?.Dispose();
+            }
+        }
     }
 }
